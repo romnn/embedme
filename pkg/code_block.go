@@ -19,8 +19,9 @@ var (
 			// optional embed comment
 			"(<!--\\s*?embedme[ ]+?(?P<embedComment>\\S+?)\\s*?-->)?" +
 			// [\\s\\S]*?)?" +
+			"[\\s\\S]*?" +
 			// start of block and language
-			"[\\s\\S]*?```(?P<language>\\w*)?.*\n" +
+			"^(?P<indent>[ \t]*?)```(?P<language>\\w*)?.*\n" +
 			// inside code block
 			"(?P<block>[\\s\\S]*?)^[ \t]*?```" +
 			// end of multiline mode
@@ -33,9 +34,18 @@ type CodeBlock struct {
 	end          int
 	StartLine    int
 	EndLine      int
+	Indent       string
 	Code         string
-	embedComment string
+	embedComment *EmbedComment
 	language     string
+}
+
+func (b *CodeBlock) Comment() string {
+	typ, err := b.CommentType()
+	if err != nil {
+		return ""
+	}
+	return commentString(*typ)
 }
 
 func (b *CodeBlock) CommentType() (*CommentType, error) {
@@ -62,26 +72,39 @@ func (b *CodeBlock) Language() (Language, error) {
 	return Language(b.language), nil
 }
 
-func (b *CodeBlock) EmbedCommand(options *Options) (commands.Command, error) {
+type EmbedComment struct {
+	Original string
+	Command  string
+}
+
+func (b *CodeBlock) EmbedCommand(options *Options) (*EmbedComment, commands.Command, error) {
 	// language, err := b.Language()
 	// if err != nil {
 	// 	return nil, err
 	// }
 	typ, err := b.CommentType()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	language, _ := b.Language()
 	embedComment := b.embedComment
-	if embedComment == "" {
-		embedComment, err = FirstComment(b.Code, *typ)
+	if embedComment == nil {
+		var ok bool
+		embedComment, ok = FirstComment(b.Code, *typ)
+		if !ok {
+			return nil, nil, fmt.Errorf(
+				"no comment starting with %s in first line of %q block",
+				commentString(*typ),
+				language,
+			)
+		}
 	}
-	if embedComment == "" {
-		return nil, nil
-		// return nil, fmt.Errorf(
-		// 	"No command detected in first line for block with extension %q",
-		// 	language,
-		// )
-	}
+	// if embedComment.Command == "" {
+	// 	return nil, nil, fmt.Errorf(
+	// 		"no command in first commentwith %s in first line of %q block",
+	// 		language,
+	// 	)
+	// }
 	fmt.Println(embedComment)
 
 	commands := []commands.Command{
@@ -89,8 +112,8 @@ func (b *CodeBlock) EmbedCommand(options *Options) (commands.Command, error) {
 		commands.NewEmbedCommandOutputCommand(options.Cwd),
 	}
 	for _, cmd := range commands {
-		if err := cmd.Parse(embedComment); err == nil {
-			return cmd, nil
+		if err := cmd.Parse(embedComment.Command); err == nil {
+			return embedComment, cmd, nil
 		}
 	}
 	// matches := getMatches(embedPathRegex, embedComment)
@@ -98,7 +121,7 @@ func (b *CodeBlock) EmbedCommand(options *Options) (commands.Command, error) {
 	// check if is filename
 	// todo: match embedCommand against different regexes
 
-	return nil, fmt.Errorf("%q is not a valid command", embedComment)
+	return embedComment, nil, fmt.Errorf("%q is not a valid command", embedComment)
 }
 
 func ExtractCodeBlocks(source string) []CodeBlock {
@@ -123,8 +146,15 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 		// block.StartLine = LineNumber(source, match.Start, newline)
 		// block.EndLine = LineNumber(source, match.End, newline)
 
+		if indent, ok := match["indent"]; ok {
+			block.Indent = indent.Text
+		}
+
 		if comment, ok := match["embedComment"]; ok {
-			block.embedComment = comment.Text
+			block.embedComment = &EmbedComment{
+				Command:  comment.Text,
+				Original: comment.Text,
+			}
 		}
 		if language, ok := match["language"]; ok {
 			block.language = language.Text
@@ -196,15 +226,34 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 // const leadingSymbol = (symbol: string): FilenameFromCommentReader => line => {
 //   const regex = new RegExp(k
 
+func commentString(typ CommentType) string {
+	switch typ {
+	case COMMENT_DOUBLE_SLASH:
+		return "//"
+	case COMMENT_XML:
+		return "<!-- ... -->"
+	case COMMENT_HASH:
+		return "#"
+	case COMMENT_SINGLE_QUOTE:
+		return "'"
+	case COMMENT_DOUBLE_PERCENT:
+		return "%%"
+	case COMMENT_DOUBLE_HYPHENS:
+		return "--"
+	}
+	return ""
+}
+
 func commentPrefixRegex(comment string) *regexp.Regexp {
+	// independent of newline type
 	return regexp.MustCompile(`^\s*` + comment + `([\s\S]*?)\r?\n`)
 }
 
-func FirstComment(source string, typ CommentType) (string, error) {
+func FirstComment(source string, typ CommentType) (*EmbedComment, bool) {
 	var re *regexp.Regexp
 	switch typ {
 	case COMMENT_NONE:
-		return "", nil
+		return &EmbedComment{Command: "", Original: ""}, true
 	case COMMENT_DOUBLE_SLASH:
 		re = commentPrefixRegex("//")
 		// return "", nil
@@ -231,7 +280,11 @@ func FirstComment(source string, typ CommentType) (string, error) {
 	match := re.FindStringSubmatch(source)
 	// fmt.Println(match)
 	if len(match) > 0 {
-		return match[1], nil
+		return &EmbedComment{
+			Original: match[0],
+			Command:  match[1],
+		}, true
+		// return match[1], true
 	}
 	// i := blockRe.SubexpIndex(name)
 	// if (!match) {
@@ -240,5 +293,5 @@ func FirstComment(source string, typ CommentType) (string, error) {
 
 	// return match[1];
 
-	return "", nil
+	return nil, false
 }

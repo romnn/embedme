@@ -61,8 +61,7 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 	// language := Language(block.Language)
 	// comment, ok := CommentForLanguage[language]
 
-	_, err = block.CommentType()
-	if err != nil {
+	if _, err = block.CommentType(); err != nil {
 		color.Yellow(err.Error())
 		return block.Code, nil
 	}
@@ -99,7 +98,7 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 	// 		block.Language,
 	// 	)
 	// }
-	command, err := block.EmbedCommand(options)
+	comment, command, err := block.EmbedCommand(options)
 	if err != nil {
 		color.Red(err.Error())
 		return block.Code, nil
@@ -117,8 +116,14 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 	if err != nil {
 		return block.Code, err
 	}
-	// todo: use the newline characters from the readme!!
+
 	output := strings.Join(lines, newline)
+
+	// todo: diff here now
+	if output == block.Code {
+		color.White("No changes required, already up to date")
+		return block.Code, nil
+	}
 
 	// fmt.Println(backtickRegex.FindAllString(output, 1))
 	if len(backtickRegex.FindAllIndex([]byte(output), 1)) > 0 {
@@ -128,13 +133,30 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 			strings.Join(internal.PreviewLines(lines, 3), newline),
 		)
 	}
-	// todo: diff here now
-	if output == block.Code {
-		color.White("No changes required, already up to date")
-		return block.Code, nil
-	}
 
-	// const chalkColour = options.verify ? 'yellow' : 'green';
+	var replacement string
+	replacement += "```"
+	replacement += block.language
+	replacement += newline
+	if !(options.StripEmbedComment || block.embedComment != nil) {
+		replacement += block.Comment()
+		replacement += comment.Command
+		replacement += newline
+		replacement += newline
+	}
+	replacement += output
+	replacement += newline
+	replacement += "```"
+
+	// indent
+	replacementLines := internal.GetLines(replacement, newline)
+	for i, line := range replacementLines {
+		replacementLines[i] = block.Indent + line
+	}
+	replacement = strings.Join(replacementLines, newline)
+
+	fmt.Println(replacement)
+
 	if options.Verify {
 		color.Yellow("Embedded %d lines", len(lines))
 	} else {
