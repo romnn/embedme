@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-build
+        args: [-race]
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+      - id: go-fmt
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+      - id: go-vet
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+      - id: go-lint
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+      - id: go-imports
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+      - id: go-cyclo
+        args: [-over=15]
+        exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
+
+  - repo: local
+    hooks:
+      - id: lint-chart
+        name: lint helm chart
+        stages: [commit]
+        language: system
+        entry: helm lint deployment/helm/charts/ldapmanager/
+        pass_filenames: false
+
+      - id: embed-examples
+        name: embed-examples
+        entry: npx embedme --verify README.md
+        language: system
+        pass_filenames: false
