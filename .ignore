@@ -1,3 +1,0 @@
-pkg/grpc/gen
-proto/google
-**/package-lock.json

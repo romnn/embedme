@@ -124,19 +124,19 @@ func run(cliCtx *cli.Context) error {
 			return fmt.Errorf("file %s does not exist: %v", source, err)
 		}
 
-		before, err := os.ReadFile(source)
+		markdown, err := os.ReadFile(source)
 		if err != nil {
 			color.Red("File %s could not be read: %v", source, err)
 			return nil
 		}
 
-		embedded, err := embedme.Embed(before, source, &options)
+		embedded, err := embedme.Embed(markdown, source, &options)
 		if err != nil {
 			color.Red("failed to embed %s: %v", source, err)
 			return nil
 		}
 
-		diff := string(before) != embedded
+		diff := string(markdown) != embedded
 		if options.Verify {
 			if diff {
 				color.Red("Diff detected, exiting 1")

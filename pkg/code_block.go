@@ -136,8 +136,8 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 			block.start = b.Start
 			block.end = b.End
 			block.Code = b.Text
-			block.StartLine = internal.GetLineNumber(source, b.Start, newline)
-			block.EndLine = internal.GetLineNumber(source, b.End, newline)
+			block.StartLine = internal.LineNumber(source, b.Start, newline)
+			block.EndLine = internal.LineNumber(source, b.End, newline)
 		}
 
 		// block.start = match.Start

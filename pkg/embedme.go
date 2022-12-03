@@ -22,7 +22,12 @@ var (
 	backtickRegex = regexp.MustCompile("^```")
 )
 
-func getReplacement(path string, options *Options, block *CodeBlock, newline string) (string, error) {
+func embedBlock(
+	path string,
+	options *Options,
+	block *CodeBlock,
+	newline string,
+) (string, error) {
 	if false {
 		color.Blue(`"Ignore next" comment detected, skipping ...`)
 		return block.Code, nil
@@ -149,13 +154,13 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 	replacement += "```"
 
 	// indent
-	replacementLines := internal.GetLines(replacement, newline)
+	replacementLines := internal.Lines(replacement, newline)
 	for i, line := range replacementLines {
 		replacementLines[i] = block.Indent + line
 	}
 	replacement = strings.Join(replacementLines, newline)
 
-	fmt.Println(replacement)
+	// fmt.Println(replacement)
 
 	if options.Verify {
 		color.Yellow("Embedded %d lines", len(lines))
@@ -169,11 +174,15 @@ func getReplacement(path string, options *Options, block *CodeBlock, newline str
 	// file path with lines: ^\s*(\S+?)((#L(\d+)-L(\d+))|$)
 	// const matches = commentedFilename.match(/\s?(\S+?)((#L(\d+)-L(\d+))|$)/m);
 
-	return "", nil
+	return replacement, nil
 }
 
-// Embed ...
-func Embed(source []byte, path string, options *Options) (string, error) {
+// Embed embeds a document
+func Embed(
+	markdown []byte,
+	path string,
+	options *Options,
+) (string, error) {
 	color.Magenta(" Analysing %s ...", path)
 
 	// le := "\n"
@@ -184,14 +193,16 @@ func Embed(source []byte, path string, options *Options) (string, error) {
 	// 	color.Magenta(" le %s ...", le)
 	// }
 
+	var partials []string
+	previousEnd := 0
 	// const docPartials = [];
 	// let previousEnd = 0;
 	// let result: RegExpExecArray | null;
 	// let replacementError = false;
-	newline := internal.DetectNewline(source)
+	newline := internal.DetectNewline(markdown)
 
 	// fmt.Print(string(source))
-	blocks := ExtractCodeBlocks(string(source))
+	blocks := ExtractCodeBlocks(string(markdown))
 
 	// matches := blockRe.FindAllStringSubmatch(string(source), -1)
 	// for _, match := range matches {
@@ -224,7 +235,7 @@ func Embed(source []byte, path string, options *Options) (string, error) {
 
 		// /<!--\s*?embedme[ -]ignore-next\s*?-->/g.test(start),
 
-		text, err := getReplacement(
+		embedded, err := embedBlock(
 			path,
 			options,
 			// log,
@@ -239,16 +250,22 @@ func Embed(source []byte, path string, options *Options) (string, error) {
 			// commentInsertion ? commentInsertion[1] : undefined,
 		)
 		if err != nil {
-			panic(err)
+			return "", err
 		}
+		partials = append(partials, string(markdown)[previousEnd:block.start])
+		partials = append(partials, embedded)
+		previousEnd = block.end
 		if false {
-			color.Magenta("\n%s\n", text)
+			color.Magenta("\n%s\n", embedded)
 		}
 		limit--
 		if limit <= 0 {
 			break
 		}
 	}
+
+  final := strings.Join(partials, newline)
+	fmt.Println(final)
 	// color.Magenta("\n%+v\n", block)
 
 	//   const [codeFence, leadingSpaces] = result;

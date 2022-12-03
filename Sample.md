@@ -8,7 +8,7 @@
 
 #### File
 ```go
-// /pkg/embedme.go
+// /pkg/options.go
 ```
 ```python
 # tasks.py#L0-20

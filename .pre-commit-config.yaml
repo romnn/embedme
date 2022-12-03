@@ -19,15 +19,8 @@ repos:
 
   - repo: local
     hooks:
-      - id: lint-chart
-        name: lint helm chart
-        stages: [commit]
-        language: system
-        entry: helm lint deployment/helm/charts/ldapmanager/
-        pass_filenames: false
-
-      - id: embed-examples
-        name: embed-examples
-        entry: npx embedme --verify README.md
+      - id: embed
+        name: embed
+        entry: embedme --verify README.md
         language: system
         pass_filenames: false

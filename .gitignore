@@ -5,8 +5,3 @@
 coverage*
 *.exe
 build/
-website/charts
-**/dist
-**/node_modules
-**/debug.yaml
-**/index.yaml

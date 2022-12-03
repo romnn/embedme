@@ -40,25 +40,22 @@ func (cmd *EmbedFileCommand) Output() ([]string, error) {
 	if err := internal.EnsureFile(path); err != nil {
 		return nil, fmt.Errorf("failed to embed %s: %v", cmd.Path, err)
 	}
-	// stat, err := os.Stat(path)
-	// if err != nil {
-	// 	return []string{}, fmt.Errorf("failed to embed %s: %v", cmd.Path)
-	// }
-	// if stat.IsDir() {
-	// 	return nil, fmt.Errorf("%s is a directory", cmd.Path)
-	// }
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	// line numbers
+	// convert to lines
 	newline := internal.DetectNewline(content)
-	lines := internal.GetLines(string(content), newline)
+	lines := internal.Lines(string(content), newline)
+
+  // select lines
 	if startLine, endLine, ok := cmd.Lines(); ok {
 		lines = lines[startLine:endLine]
 	}
-	minSpaces := internal.GetMinimumSpaces(lines)
+
+  // properly indent
+	minSpaces := internal.MinIndent(lines)
 	if minSpaces > 0 {
 		for i, line := range lines {
 			lines[i] = line[minSpaces:]

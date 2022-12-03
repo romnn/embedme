@@ -43,6 +43,6 @@ func (cmd *EmbedCommandOutputCommand) Output() ([]string, error) {
     return nil, err
   }
 	newline := internal.DetectNewline(output)
-	lines := internal.GetLines(string(output), newline)
+	lines := internal.Lines(string(output), newline)
   return lines, nil
 }
