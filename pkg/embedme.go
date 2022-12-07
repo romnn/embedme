@@ -2,6 +2,7 @@ package embedme
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -9,29 +10,37 @@ import (
 	"github.com/romnn/embedme/internal"
 )
 
-// var (
-// // Detects info string following the beginning of a code block
-// // infoStringRe = regexp.MustCompile("```(.*)")
-
-// // Detects line ending to use based on whether CRLF is used in the source
-// // const lineEnding = detectLineEnding(sourceText);
-// // leRe = regexp.MustCompile("/\r\n/")
-// )
-
 var (
 	backtickRegex = regexp.MustCompile("^```")
+	Info          = color.New(color.FgBlue).FprintfFunc()
+	Warning       = color.New(color.FgYellow).FprintfFunc()
+	Error         = color.New(color.FgRed).FprintfFunc()
 )
 
 func embedBlock(
 	path string,
+	relPath string,
 	options *Options,
 	block *CodeBlock,
 	newline string,
+	startLine int,
 ) (string, error) {
-	if false {
-		color.Blue(`"Ignore next" comment detected, skipping ...`)
+	// relPath, err := filepath.Rel(options.Cwd, path)
+	// if err != nil {
+	// panic(err)
+	//
+	endLine := len(internal.Lines(block.Code)) + startLine
+	logPrefix := fmt.Sprintf("  %s#L%d-L%d", relPath, startLine, endLine)
+	log.SetPrefix(logPrefix)
+
+	if block.Ignore {
+		// log
+		// Magenta(log.Writer(), "embedme v%s\n", versionString())
+		Info(log.Writer(), "Ignore next comment detected, skipping ...\n")
+		// color.Blue(`"Ignore next" comment detected, skipping ...`)
 		return block.Code, nil
 	}
+	Info(log.Writer(), logPrefix+"\n")
 
 	// let commentedFilename: string | null;
 	// if (commentEmbedOverrideFilepath) {
@@ -39,22 +48,25 @@ func embedBlock(
 	// } else {
 	//   if (!codeExtension) {
 	//     log({ returnSnippet: substr }, chalk => chalk.blue(
-	// if block.Language == "" {
-	// 	color.Blue("No code extension detected, skipping ...")
-	// 	return block.Code, nil
-	// }
-	language, err := block.Language()
-	if err != nil {
-		color.Blue(err.Error())
+
+	if block.Language == "" {
+		Info(log.Writer(), "No code extension detected, skipping ...\n")
 		return block.Code, nil
 	}
 
-	if false {
-		color.Blue(
-			"Code block is empty and no preceding embedme comment, skipping...",
-		)
-		return block.Code, nil
-	}
+	// language, err := block.Language()
+	// languagerr := block.Language()
+	// if err != nil {
+	// 	color.Blue(err.Error())
+	// 	return block.Code, nil
+	// }
+
+	// if false {
+	// 	color.Blue(
+	// 		"Code block is empty and no preceding embedme comment, skipping...",
+	// 	)
+	// 	return block.Code, nil
+	// }
 
 	// var supported []string
 	// for _, languages := range languageComments {
@@ -66,8 +78,9 @@ func embedBlock(
 	// language := Language(block.Language)
 	// comment, ok := CommentForLanguage[language]
 
-	if _, err = block.CommentType(); err != nil {
-		color.Yellow(err.Error())
+	if _, err := block.CommentType(); err != nil {
+		Warning(log.Writer(), err.Error()+"\n")
+		// color.Yellow(err.Error())
 		return block.Code, nil
 	}
 
@@ -105,13 +118,14 @@ func embedBlock(
 	// }
 	comment, command, err := block.EmbedCommand(options)
 	if err != nil {
-		color.Red(err.Error())
+		Error(log.Writer(), err.Error()+"\n")
+		// color.Red(err.Error())
 		return block.Code, nil
 	}
 	if command == nil {
 		color.White(
 			"No command detected in first line for block with extension %q",
-			language,
+			block.Language,
 		)
 		return block.Code, nil
 	}
@@ -141,11 +155,11 @@ func embedBlock(
 
 	var replacement string
 	replacement += "```"
-	replacement += block.language
+	replacement += string(block.Language)
 	replacement += newline
-	if !(options.StripEmbedComment || block.embedComment != nil) {
+	if !(options.StripEmbedComment || block.EmbedComment != "") {
 		replacement += block.Comment()
-		replacement += comment.Command
+		replacement += comment // .Command
 		replacement += newline
 		replacement += newline
 	}
@@ -154,7 +168,7 @@ func embedBlock(
 	replacement += "```"
 
 	// indent
-	replacementLines := internal.Lines(replacement, newline)
+	replacementLines := internal.Lines(replacement)
 	for i, line := range replacementLines {
 		replacementLines[i] = block.Indent + line
 	}
@@ -181,38 +195,17 @@ func embedBlock(
 func Embed(
 	markdown []byte,
 	path string,
+	relPath string,
 	options *Options,
 ) (string, error) {
-	color.Magenta(" Analysing %s ...", path)
-
-	// le := "\n"
-	// if leRe.Match(source) {
-	// 	le = "\r\n"
-	// }
-	// if false {
-	// 	color.Magenta(" le %s ...", le)
-	// }
+	color.Magenta("Analysing %s ...", relPath)
 
 	var partials []string
 	previousEnd := 0
-	// const docPartials = [];
-	// let previousEnd = 0;
-	// let result: RegExpExecArray | null;
-	// let replacementError = false;
 	newline := internal.DetectNewline(markdown)
 
-	// fmt.Print(string(source))
 	blocks := ExtractCodeBlocks(string(markdown))
 
-	// matches := blockRe.FindAllStringSubmatch(string(source), -1)
-	// for _, match := range matches {
-	// 	block := match[0]
-	// 	group := make(map[string]string)
-	// 	for i, name := range blockRe.SubexpNames() {
-	// 		if i != 0 && name != "" {
-	// 			group[name] = match[i]
-	// 		}
-	// 	}
 	limit := 2
 	for _, block := range blocks {
 
@@ -221,7 +214,12 @@ func Embed(
 		// color.Magenta("\n%v\n", block)
 		// color.Magenta("\n%+v\n", group)
 
-		// if (options.dryRun || options.stdout || options.verify) {
+    startLine := 0
+		if options.DryRun || options.Stdout || options.Verify {
+      startLine = block.StartLine
+    } else {
+      startLine = len(internal.Lines(strings.Join(partials, newline))) - 1
+    }
 		// text.substring(0, index).split(lineEnding).length;
 
 		//     return getLineNumber(sourceText.substring(0, result.index), result.index, lineEnding);
@@ -237,10 +235,12 @@ func Embed(
 
 		embedded, err := embedBlock(
 			path,
+			relPath,
 			options,
 			// log,
 			&block,
 			newline,
+      startLine,
 			// leadingSpaces,
 			// lineEnding,
 			// infoString,
@@ -252,9 +252,9 @@ func Embed(
 		if err != nil {
 			return "", err
 		}
-		partials = append(partials, string(markdown)[previousEnd:block.start])
+		partials = append(partials, string(markdown)[previousEnd:block.Start])
 		partials = append(partials, embedded)
-		previousEnd = block.end
+		previousEnd = block.End
 		if false {
 			color.Magenta("\n%s\n", embedded)
 		}
@@ -264,8 +264,10 @@ func Embed(
 		}
 	}
 
-  final := strings.Join(partials, newline)
-	fmt.Println(final)
+	final := strings.Join(partials, newline)
+	if false {
+		fmt.Println(final)
+	}
 	// color.Magenta("\n%+v\n", block)
 
 	//   const [codeFence, leadingSpaces] = result;

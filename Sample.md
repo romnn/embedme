@@ -2,6 +2,11 @@
 ## This is a sample markdown document
 
 #### Command output
+```
+this could be anything and hence should be ignored
+```
+
+#### Command output
 ```embedme
 // $ scc --wide && echo "hello"
 ```

@@ -4,6 +4,7 @@ type Language string
 
 var (
 	PLAIN_TEXT  []Language = []Language{"txt", "embedme"}
+	NONE                   = []Language{""}
 	TYPESCRIPT             = []Language{"ts"}
 	JAVASCRIPT             = []Language{"js"}
 	REASON                 = []Language{"re"}
@@ -19,7 +20,7 @@ var (
 	YAML                   = []Language{"yaml"}
 	JSON                   = []Language{"json"}
 	JSON_5                 = []Language{"json5"}
-  PYTHON                 = []Language{"py", "python"}
+	PYTHON                 = []Language{"py", "python"}
 	BASH                   = []Language{"bash"}
 	SHELL                  = []Language{"sh", "shell"}
 	GOLANG                 = []Language{"go", "golang"}
@@ -58,7 +59,8 @@ var (
 	LanguageComments = map[CommentType][]Language{
 		COMMENT_NONE: concat(JSON),
 		COMMENT_DOUBLE_SLASH: concat(
-			PLAIN_TEXT, // this is a lie, but we gotta pick something
+			NONE, // we define no-language to use double slash
+			PLAIN_TEXT, // we define plaintext to use double slash
 			C,
 			TYPESCRIPT,
 			REASON,

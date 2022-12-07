@@ -42,7 +42,8 @@ func (cmd *EmbedCommandOutputCommand) Output() ([]string, error) {
   if err != nil {
     return nil, err
   }
-	newline := internal.DetectNewline(output)
-	lines := internal.Lines(string(output), newline)
+	// newline := internal.DetectNewline(output)
+	// lines := internal.Lines(string(output), newline)
+	lines := internal.Lines(string(output))
   return lines, nil
 }

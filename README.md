@@ -38,9 +38,11 @@ inv pre-commit
 
 #### TODO
 
+- use different color library?
+- refactor the code
 - add a lot of tests!
 - fix the source line numbers
-- add regex that can identify commands
 
 - done
-    - basic parsing
+  - basic parsing
+  - add regex that can identify commands

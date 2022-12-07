@@ -1,17 +1,20 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
+	"log"
+	"time"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
-	"github.com/romnn/embedme/pkg"
 	"github.com/romnn/embedme/internal"
+	"github.com/romnn/embedme/pkg"
 	"github.com/sabhiram/go-gitignore"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 // Version is set during build
@@ -20,18 +23,49 @@ var Version = ""
 // Rev is set during build
 var Rev = ""
 
+var (
+	Magenta = color.New(color.FgMagenta).FprintfFunc()
+	Info    = color.New(color.FgBlue).FprintfFunc()
+	Warning = color.New(color.FgYellow).FprintfFunc()
+	Error   = color.New(color.FgRed).FprintfFunc()
+	Log     = color.New(color.FgWhite).FprintfFunc()
+)
+
 func versionString() string {
 	return fmt.Sprintf("%s (%s)", Version, Rev)
 }
 
 func run(cliCtx *cli.Context) error {
-	// todo: cli arg
-	color.NoColor = false
+	start := time.Now()
+
+	stdout := cliCtx.Bool(stdoutFlag.Name)
+	silent := cliCtx.Bool(silentFlag.Name)
+	noColor := cliCtx.Bool(noColorFlag.Name)
+	forceColor := cliCtx.Bool(forceColorFlag.Name)
+
+	if silent {
+		log.SetOutput(ioutil.Discard)
+	} else if stdout {
+		// the result will be written to stdout,
+		// so we redirect the logs to stderr
+		log.SetOutput(os.Stderr)
+	}
+
+	if noColor {
+		color.NoColor = true
+	}
+	if forceColor {
+		color.NoColor = false
+	}
+
+	Magenta(log.Writer(), "embedme v%s\n", versionString())
 
 	realCwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
+
+	output := cliCtx.String(outputFlag.Name)
 
 	glob := cliCtx.Bool(globFlag.Name)
 	cwd := cliCtx.String(cwdFlag.Name)
@@ -45,48 +79,64 @@ func run(cliCtx *cli.Context) error {
 
 	options := embedme.Options{
 		StripEmbedComment: cliCtx.Bool(stripEmbedCommentFlag.Name),
-		Stdout:            cliCtx.Bool(stdoutFlag.Name),
+		Stdout:            stdout,
 		Verify:            cliCtx.Bool(verifyFlag.Name),
 		DryRun:            cliCtx.Bool(dryRunFlag.Name),
 		Cwd:               cwd,
 		Base:              base,
 	}
 
+	allFlags := make(map[string]bool)
+	for _, flag := range cliCtx.App.Flags {
+		for _, name := range flag.Names() {
+			allFlags[name] = true
+		}
+	}
+
 	sources := make(sourceMap)
 	for _, arg := range cliCtx.Args().Slice() {
+		if _, ok := allFlags[strings.TrimLeft(strings.TrimSpace(arg), "-")]; ok {
+			// is a flag, skip
+			continue
+		}
 		if glob {
-			fmt.Printf("globbing for %s\n", arg)
 			matches, err := fs.Glob(os.DirFS(cwd), arg)
 			if err != nil {
-				color.Red("failed to glob pattern %q in %s: %v", arg, cwd, err)
-				return nil
+				return fmt.Errorf("failed to glob pattern %q in %s: %v", arg, cwd, err)
 			}
 			sources.Add(matches...)
 		} else {
+			if !filepath.IsAbs(arg) {
+				arg = filepath.Join(cwd, arg)
+			}
 			sources.Add(arg)
 		}
 	}
 
-	if len(sources) > 1 {
-		color.Yellow("more than one file matched your input, results will be concatenated in stdout")
-	} else if len(sources) == 0 {
-		color.Yellow("no files matched your input")
+	if len(sources) > 1 && (options.Stdout || output != "") {
+		Warning(log.Writer(), "more than one file matched: results will be concatenated")
+	}
+	if len(sources) == 0 {
+		Warning(log.Writer(), "no files matched your input")
 		return nil
 	}
 
 	if options.StripEmbedComment && !options.Stdout {
-		color.Red("If you use the --strip-embed-comment flag, you must use the --stdout flag and redirect the result to your destination file, otherwise your source file(s) will be rewritten and the comment source is lost.")
-		return nil
+		Error(log.Writer(), `Invalid use of --strip-embed-comment.
+If you use the --strip-embed-comment flag, you must use the --stdout flag
+and redirect the result to your destination file, otherwise your source
+file(s) will be overwritten and the comment source is lost.`)
+		os.Exit(1)
 	}
 
 	if options.Verify {
-		color.Blue("Verifying...")
+		Info(log.Writer(), "Verifying...\n")
 	} else if options.DryRun {
-		color.Blue("Doing a dry run...")
+		Info(log.Writer(), "Doing a dry run...\n")
 	} else if options.Stdout {
-		color.Blue("Outputting to stdout...")
+		Info(log.Writer(), "Writing to stdout...\n")
 	} else {
-		color.Blue("Embedding...")
+		Info(log.Writer(), "Embedding...\n")
 	}
 
 	for _, ignoreFile := range []string{".embedmeignore", ".gitignore"} {
@@ -102,51 +152,50 @@ func run(cliCtx *cli.Context) error {
 		ignored := sources.Ignore(ignore)
 
 		if ignored > 0 {
-			color.Blue("Skipped %d files ignored in %s", ignored, ignoreFile)
+			Info(log.Writer(), "Skipped %d files ignored in %s\n", ignored, ignoreFile)
 		}
 	}
 
 	if len(sources) == 0 {
-		color.Yellow("All matching files were ignored")
+		Warning(log.Writer(), "All matching files were ignored\n")
 		return nil
 	}
 
 	for i, source := range sources.Valid() {
-		if i > 0 {
-			color.White("---")
+		relSource := source
+		if rel, err := filepath.Rel(cwd, source); err == nil {
+			relSource = rel
 		}
 
-		// if _, err := os.Stat(source); err != nil {
-		// 	color.Red("File %s does not exist", source)
-		// 	return nil
-		// }
+		if i > 0 {
+			Log(log.Writer(), "---")
+		}
+		log.SetPrefix("test")
+
 		if err := internal.EnsureFile(source); err != nil {
-			return fmt.Errorf("file %s does not exist: %v", source, err)
+			return fmt.Errorf("file %s does not exist: %v", relSource, err)
 		}
 
 		markdown, err := os.ReadFile(source)
 		if err != nil {
-			color.Red("File %s could not be read: %v", source, err)
-			return nil
+			return fmt.Errorf("file %s could not be read: %v", relSource, err)
 		}
 
-		embedded, err := embedme.Embed(markdown, source, &options)
+		embedded, err := embedme.Embed(markdown, source, relSource, &options)
 		if err != nil {
-			color.Red("failed to embed %s: %v", source, err)
-			return nil
+			return fmt.Errorf("failed to embed %s: %v", relSource, err)
 		}
 
 		diff := string(markdown) != embedded
 		if options.Verify {
 			if diff {
-				color.Red("Diff detected, exiting 1")
-				return errors.New("diff")
+				return fmt.Errorf("Difference detected, exiting 1\n")
 			}
 		} else if options.Stdout {
 			fmt.Print(embedded)
 		} else if !options.DryRun {
 			if diff {
-				color.Magenta("Writing %s with embedded changes.", source)
+				Magenta(log.Writer(), "Writing %s with embedded changes.\n", relSource)
 				f, err := os.Open(source)
 				if err != nil {
 					panic(err)
@@ -155,19 +204,17 @@ func run(cliCtx *cli.Context) error {
 				// if _, err := f.Write([]byte(embedded)); err != nil {
 				//   panic(err)
 				// }
-				// writeFileSync(source, outText)
 			} else {
-				color.Magenta("No changes to write for %s", source)
+				Magenta(log.Writer(), "No changes to write for %s\n", relSource)
 			}
 		}
 	}
 
+	Magenta(log.Writer(), "done in %v\n", time.Now().Sub(start))
 	return nil
 }
 
 func main() {
-	// fmt.Printf("embedme v%s\n", versionString())
-
 	app := &cli.App{
 		Name:    "embedme",
 		Usage:   "utility for embedding code snippets into markdown documents",
@@ -175,17 +222,22 @@ func main() {
 		Flags: []cli.Flag{
 			&verifyFlag,
 			&dryRunFlag,
+			&forceColorFlag,
+			&noColorFlag,
 			&cwdFlag,
 			&sourceBaseFlag,
 			&globFlag,
 			&silentFlag,
 			&stdoutFlag,
+			&outputFlag,
 			&stripEmbedCommentFlag,
 		},
 		Action: run,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
+		// todo: color red and exit code
 		panic(err)
+		os.Exit(1)
 	}
 }

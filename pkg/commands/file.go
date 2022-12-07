@@ -46,8 +46,9 @@ func (cmd *EmbedFileCommand) Output() ([]string, error) {
 	}
 
 	// convert to lines
-	newline := internal.DetectNewline(content)
-	lines := internal.Lines(string(content), newline)
+	// newline := internal.DetectNewline(content)
+	// lines := internal.Lines(string(content), newline)
+	lines := internal.Lines(string(content))
 
   // select lines
 	if startLine, endLine, ok := cmd.Lines(); ok {

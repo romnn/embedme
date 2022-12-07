@@ -6,6 +6,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/urfave/cli/v2 v2.23.5
+	github.com/urfave/cli/v3 v3.0.0-alpha
 	golang.org/x/exp v0.0.0-20221126150942-6ab00d035af9
 )
 
