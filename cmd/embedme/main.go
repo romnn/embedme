@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
-	"time"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/romnn/embedme/internal"
@@ -35,23 +36,23 @@ func versionString() string {
 	return fmt.Sprintf("%s (%s)", Version, Rev)
 }
 
-func run(cliCtx *cli.Context) error {
+func run(ctx context.Context, cmd *cli.Command) error {
 	start := time.Now()
 
-	stdout := cliCtx.Bool(stdoutFlag.Name)
-	silent := cliCtx.Bool(silentFlag.Name)
-	noColor := cliCtx.Bool(noColorFlag.Name)
-	forceColor := cliCtx.Bool(forceColorFlag.Name)
+	stdout := cmd.Bool(stdoutFlag.Name)
+	silent := cmd.Bool(silentFlag.Name)
+	useColor := cmd.Bool(colorFlag.Name)
+	forceColor := cmd.Bool(forceColorFlag.Name)
 
 	if silent {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 	} else if stdout {
 		// the result will be written to stdout,
 		// so we redirect the logs to stderr
 		log.SetOutput(os.Stderr)
 	}
 
-	if noColor {
+	if !useColor {
 		color.NoColor = true
 	}
 	if forceColor {
@@ -65,11 +66,11 @@ func run(cliCtx *cli.Context) error {
 		return err
 	}
 
-	output := cliCtx.String(outputFlag.Name)
+	output := cmd.String(outputFlag.Name)
 
-	glob := cliCtx.Bool(globFlag.Name)
-	cwd := cliCtx.String(cwdFlag.Name)
-	base := cliCtx.String(sourceBaseFlag.Name)
+	glob := cmd.Bool(globFlag.Name)
+	cwd := cmd.String(cwdFlag.Name)
+	base := cmd.String(sourceBaseFlag.Name)
 	if cwd == "" {
 		cwd = realCwd
 	}
@@ -78,24 +79,25 @@ func run(cliCtx *cli.Context) error {
 	}
 
 	options := embedme.Options{
-		StripEmbedComment: cliCtx.Bool(stripEmbedCommentFlag.Name),
+		StripEmbedComment: cmd.Bool(stripEmbedCommentFlag.Name),
 		Stdout:            stdout,
-		Verify:            cliCtx.Bool(verifyFlag.Name),
-		DryRun:            cliCtx.Bool(dryRunFlag.Name),
+		Verify:            cmd.Bool(verifyFlag.Name),
+		DryRun:            cmd.Bool(dryRunFlag.Name),
 		Cwd:               cwd,
 		Base:              base,
 	}
 
 	allFlags := make(map[string]bool)
-	for _, flag := range cliCtx.App.Flags {
+	for _, flag := range cmd.Flags {
 		for _, name := range flag.Names() {
 			allFlags[name] = true
 		}
 	}
 
 	sources := make(sourceMap)
-	for _, arg := range cliCtx.Args().Slice() {
-		if _, ok := allFlags[strings.TrimLeft(strings.TrimSpace(arg), "-")]; ok {
+	for _, arg := range cmd.Args().Slice() {
+		flag := strings.TrimLeft(strings.TrimSpace(arg), "-")
+		if _, ok := allFlags[flag]; ok {
 			// is a flag, skip
 			continue
 		}
@@ -215,15 +217,15 @@ file(s) will be overwritten and the comment source is lost.`)
 }
 
 func main() {
-	app := &cli.App{
-		Name:    "embedme",
-		Usage:   "utility for embedding code snippets into markdown documents",
-		Version: versionString(),
+	app := &cli.Command{
+		Name:        "embedme",
+		Description: "utility for embedding code snippets into markdown documents",
+		Version:     versionString(),
 		Flags: []cli.Flag{
 			&verifyFlag,
 			&dryRunFlag,
 			&forceColorFlag,
-			&noColorFlag,
+			&colorFlag,
 			&cwdFlag,
 			&sourceBaseFlag,
 			&globFlag,
@@ -234,10 +236,9 @@ func main() {
 		},
 		Action: run,
 	}
-	err := app.Run(os.Args)
+	err := app.Run(context.Background(), os.Args)
 	if err != nil {
-		// todo: color red and exit code
-		panic(err)
+		Error(log.Writer(), "error: %v\n", err)
 		os.Exit(1)
 	}
 }
