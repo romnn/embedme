@@ -3,17 +3,18 @@ package embedme
 import (
 	// "errors"
 	"fmt"
-	"github.com/romnn/embedme/internal"
-	"github.com/romnn/embedme/pkg/commands"
 	"regexp"
 	"strings"
+
+	"github.com/romnn/embedme/internal"
+	"github.com/romnn/embedme/pkg/commands"
 )
 
 var (
 	// Match a code block
 	// optional: capture groups around the file extension
 	// optional: capture first line starting with //
-	blockRe = regexp.MustCompile(
+	blockRegex = regexp.MustCompile(
 		// multiline mode
 		"(?m:" +
 			// optional embed comment
@@ -141,15 +142,17 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 
 	// newline := internal.DetectNewline([]byte(source))
 
-	matches := internal.GetMatches(blockRe, string(source))
+	matches := internal.GetMatches(blockRegex, string(source))
 	for _, match := range matches {
 		var block CodeBlock
 		if b, ok := match["block"]; ok {
 			block.Start = b.Start
 			block.End = b.End
 			block.Code = b.Text
-			block.StartLine = internal.LineNumber(source, b.Start) // newline)
-			block.EndLine = internal.LineNumber(source, b.End) // newline)
+			// newline)
+			block.StartLine = internal.LineNumber(source, b.Start)
+			// newline)
+			block.EndLine = internal.LineNumber(source, b.End)
 		}
 
 		// block.start = match.Start
@@ -180,7 +183,7 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 	}
 	return blocks
 
-	// matches := blockRe.FindAllStringSubmatchIndex(string(source), -1)
+	// matches := blockRegex.FindAllStringSubmatchIndex(string(source), -1)
 	// for _, pos := range matches {
 	// 	// block := match[0]
 	// 	// group := make(map[string]string)
@@ -194,11 +197,11 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 	// 	// 	End:   end,
 	// 	// }
 
-	// 	// fmt.Printf("%v\n", blockRe.SubexpNames())
+	// 	// fmt.Printf("%v\n", blockRegex.SubexpNames())
 	// 	// fmt.Printf("%v\n", pos)
 
-	// 	for _, name := range blockRe.SubexpNames() {
-	// 		i := blockRe.SubexpIndex(name)
+	// 	for _, name := range blockRegex.SubexpNames() {
+	// 		i := blockRegex.SubexpIndex(name)
 	// 		// fmt.Printf("%s %d\n", name, i)
 	// 		if i < 0 {
 	// 			// no match
@@ -245,17 +248,17 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 
 func commentString(typ CommentType) string {
 	switch typ {
-	case COMMENT_DOUBLE_SLASH:
+	case CommentDoubleSlash:
 		return "//"
-	case COMMENT_XML:
+	case CommentXML:
 		return "<!-- ... -->"
-	case COMMENT_HASH:
+	case CommentHash:
 		return "#"
-	case COMMENT_SINGLE_QUOTE:
+	case CommentSingleQuote:
 		return "'"
-	case COMMENT_DOUBLE_PERCENT:
+	case CommentDoublePercent:
 		return "%%"
-	case COMMENT_DOUBLE_HYPHENS:
+	case CommentDoubleHyphens:
 		return "--"
 	}
 	return ""
@@ -270,26 +273,26 @@ func commentPrefixRegex(comment string) *regexp.Regexp {
 func FirstComment(source string, typ CommentType) (string, bool) {
 	var re *regexp.Regexp
 	switch typ {
-	case COMMENT_NONE:
+	case CommentNone:
 		// return &EmbedComment{Command: "", Original: ""}, true
 		return "", true
-	case COMMENT_DOUBLE_SLASH:
+	case CommentDoubleSlash:
 		re = commentPrefixRegex("//")
 		// return "", nil
-	case COMMENT_XML:
+	case CommentXML:
 		re = regexp.MustCompile(`<!--\s*?(\S*?)\s*?-->`)
 		// const match = line.match(/<!--\s*?(\S*?)\s*?-->/);
 		// return "", nil
-	case COMMENT_HASH:
+	case CommentHash:
 		re = commentPrefixRegex("#")
 		// return "", nil
-	case COMMENT_SINGLE_QUOTE:
+	case CommentSingleQuote:
 		re = commentPrefixRegex("'")
 		// return "", nil
-	case COMMENT_DOUBLE_PERCENT:
+	case CommentDoublePercent:
 		re = commentPrefixRegex("%%")
 		// return "", nil
-	case COMMENT_DOUBLE_HYPHENS:
+	case CommentDoubleHyphens:
 		re = commentPrefixRegex("--")
 		// return "", nil
 	}
@@ -306,7 +309,7 @@ func FirstComment(source string, typ CommentType) (string, bool) {
 		// }, true
 		// return match[1], true
 	}
-	// i := blockRe.SubexpIndex(name)
+	// i := blockRegex.SubexpIndex(name)
 	// if (!match) {
 	//   return null;
 	// }

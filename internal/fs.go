@@ -1,8 +1,8 @@
 package internal
 
 import (
-  "os"
-  "fmt"
+	"fmt"
+	"os"
 )
 
 func EnsureFile(path string) error {

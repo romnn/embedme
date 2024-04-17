@@ -12,9 +12,16 @@ import (
 
 var (
 	backtickRegex = regexp.MustCompile("^```")
-	Info          = color.New(color.FgBlue).FprintfFunc()
-	Warning       = color.New(color.FgYellow).FprintfFunc()
-	Error         = color.New(color.FgRed).FprintfFunc()
+	// Magenta ...
+	Magenta = color.New(color.FgMagenta).FprintfFunc()
+	// Info ...
+	Info = color.New(color.FgBlue).FprintfFunc()
+	// Warning ...
+	Warning = color.New(color.FgYellow).FprintfFunc()
+	// Error ...
+	Error = color.New(color.FgRed).FprintfFunc()
+	// Log ...
+	Log = color.New(color.FgWhite).FprintfFunc()
 )
 
 func embedBlock(
@@ -214,12 +221,12 @@ func Embed(
 		// color.Magenta("\n%v\n", block)
 		// color.Magenta("\n%+v\n", group)
 
-    startLine := 0
+		startLine := 0
 		if options.DryRun || options.Stdout || options.Verify {
-      startLine = block.StartLine
-    } else {
-      startLine = len(internal.Lines(strings.Join(partials, newline))) - 1
-    }
+			startLine = block.StartLine
+		} else {
+			startLine = len(internal.Lines(strings.Join(partials, newline))) - 1
+		}
 		// text.substring(0, index).split(lineEnding).length;
 
 		//     return getLineNumber(sourceText.substring(0, result.index), result.index, lineEnding);
@@ -240,7 +247,7 @@ func Embed(
 			// log,
 			&block,
 			newline,
-      startLine,
+			startLine,
 			// leadingSpaces,
 			// lineEnding,
 			// infoString,

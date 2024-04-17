@@ -3,109 +3,109 @@ package embedme
 type Language string
 
 var (
-	PLAIN_TEXT  []Language = []Language{"txt", "embedme"}
-	NONE                   = []Language{""}
-	TYPESCRIPT             = []Language{"ts"}
-	JAVASCRIPT             = []Language{"js"}
-	REASON                 = []Language{"re"}
-	SCSS                   = []Language{"scss"}
-	RUST                   = []Language{"rust"}
-	JAVA                   = []Language{"java"}
-	CPP                    = []Language{"cpp"}
-	C                      = []Language{"c"}
-	HTML                   = []Language{"html"}
-	XML                    = []Language{"xml"}
-	MARKDOWN               = []Language{"md"}
-	TOML                   = []Language{"toml"}
-	YAML                   = []Language{"yaml"}
-	JSON                   = []Language{"json"}
-	JSON_5                 = []Language{"json5"}
-	PYTHON                 = []Language{"py", "python"}
-	BASH                   = []Language{"bash"}
-	SHELL                  = []Language{"sh", "shell"}
-	GOLANG                 = []Language{"go", "golang"}
-	OBJECTIVE_C            = []Language{"objectivec"}
-	PHP                    = []Language{"php"}
-	C_SHARP                = []Language{"cs"}
-	SWIFT                  = []Language{"swift"}
-	RUBY                   = []Language{"rb"}
-	KOTLIN                 = []Language{"kotlin"}
-	SCALA                  = []Language{"scala"}
-	CRYSTAL                = []Language{"cr"}
-	PLANT_UML              = []Language{"puml"}
-	MERMAID                = []Language{"mermaid"}
-	CMAKE                  = []Language{"cmake"}
-	PROTOBUF               = []Language{"proto"}
-	SQL                    = []Language{"sql"}
-	HASKELL                = []Language{"hs"}
-	ARDUINO                = []Language{"ino"}
-	JSX                    = []Language{"jsx"}
-	TSX                    = []Language{"tsx"}
+	PlainText  []Language = []Language{"txt", "embedme"}
+	None                  = []Language{""}
+	Typescript            = []Language{"ts"}
+	Javascript            = []Language{"js"}
+	Reason                = []Language{"re"}
+	Scss                  = []Language{"scss"}
+	Rust                  = []Language{"rust"}
+	Java                  = []Language{"java"}
+	Cpp                   = []Language{"cpp"}
+	C                     = []Language{"c"}
+	HTML                  = []Language{"html"}
+	XML                   = []Language{"xml"}
+	Markdown              = []Language{"md"}
+	TOML                  = []Language{"toml"}
+	YAML                  = []Language{"yaml"}
+	JSON                  = []Language{"json"}
+	JSON5                 = []Language{"json5"}
+	Python                = []Language{"py", "python"}
+	Bash                  = []Language{"bash"}
+	Shell                 = []Language{"sh", "shell"}
+	Golang                = []Language{"go", "golang"}
+	ObjectiveC            = []Language{"objectivec"}
+	PHP                   = []Language{"php"}
+	CSharp                = []Language{"cs"}
+	Swift                 = []Language{"swift"}
+	Ruby                  = []Language{"rb"}
+	Kotlin                = []Language{"kotlin"}
+	Scala                 = []Language{"scala"}
+	Crystal               = []Language{"cr"}
+	PlantUML              = []Language{"puml"}
+	Mermaid               = []Language{"mermaid"}
+	Cmake                 = []Language{"cmake"}
+	Protobuf              = []Language{"proto"}
+	SQL                   = []Language{"sql"}
+	Haskell               = []Language{"hs"}
+	Arduino               = []Language{"ino"}
+	Jsx                   = []Language{"jsx"}
+	Tsx                   = []Language{"tsx"}
 )
 
 type CommentType uint32
 
 const (
-	COMMENT_NONE CommentType = iota
-	COMMENT_DOUBLE_SLASH
-	COMMENT_XML
-	COMMENT_HASH
-	COMMENT_SINGLE_QUOTE
-	COMMENT_DOUBLE_PERCENT
-	COMMENT_DOUBLE_HYPHENS
+	CommentNone CommentType = iota
+	CommentDoubleSlash
+	CommentXML
+	CommentHash
+	CommentSingleQuote
+	CommentDoublePercent
+	CommentDoubleHyphens
 )
 
 var (
 	LanguageComments = map[CommentType][]Language{
-		COMMENT_NONE: concat(JSON),
-		COMMENT_DOUBLE_SLASH: concat(
-			NONE, // we define no-language to use double slash
-			PLAIN_TEXT, // we define plaintext to use double slash
+		CommentNone: concat(JSON),
+		CommentDoubleSlash: concat(
+			None,      // we define no-language to use double slash
+			PlainText, // we define plaintext to use double slash
 			C,
-			TYPESCRIPT,
-			REASON,
-			JAVASCRIPT,
-			RUST,
-			CPP,
-			JAVA,
-			GOLANG,
-			OBJECTIVE_C,
-			SCSS,
+			Typescript,
+			Reason,
+			Javascript,
+			Rust,
+			Cpp,
+			Java,
+			Golang,
+			ObjectiveC,
+			Scss,
 			PHP,
-			C_SHARP,
-			SWIFT,
-			KOTLIN,
-			SCALA,
-			JSON_5,
-			PROTOBUF,
-			ARDUINO,
-			JSX,
-			TSX,
+			CSharp,
+			Swift,
+			Kotlin,
+			Scala,
+			JSON5,
+			Protobuf,
+			Arduino,
+			Jsx,
+			Tsx,
 		),
-		COMMENT_XML: concat(
+		CommentXML: concat(
 			HTML,
-			MARKDOWN,
+			Markdown,
 			XML,
 		),
-		COMMENT_HASH: concat(
-			PYTHON,
-			BASH,
-			SHELL,
+		CommentHash: concat(
+			Python,
+			Bash,
+			Shell,
 			YAML,
 			TOML,
-			RUBY,
-			CRYSTAL,
-			CMAKE,
+			Ruby,
+			Crystal,
+			Cmake,
 		),
-		COMMENT_SINGLE_QUOTE: concat(
-			PLANT_UML,
+		CommentSingleQuote: concat(
+			PlantUML,
 		),
-		COMMENT_DOUBLE_PERCENT: concat(
-			MERMAID,
+		CommentDoublePercent: concat(
+			Mermaid,
 		),
-		COMMENT_DOUBLE_HYPHENS: concat(
+		CommentDoubleHyphens: concat(
 			SQL,
-			HASKELL,
+			Haskell,
 		),
 	}
 	SupportedLanguages = buildSupportedLanguages(LanguageComments)

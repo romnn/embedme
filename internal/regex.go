@@ -4,12 +4,14 @@ import (
 	"regexp"
 )
 
+// Match ...
 type Match struct {
 	Text  string
 	Start int
 	End   int
 }
 
+// GetMatches ...
 func GetMatches(exp *regexp.Regexp, text string) []map[string]Match {
 	var results []map[string]Match
 	matches := exp.FindAllStringSubmatchIndex(text, -1)

@@ -13,6 +13,7 @@ var (
 	lfRe = regexp.MustCompile("\n")
 )
 
+// DetectNewline ...
 func DetectNewline(input []byte) string {
 	crlfs := crlfRe.FindAllIndex(input, -1)
 	lfs := lfRe.FindAllIndex(input, -1)
@@ -26,6 +27,7 @@ var (
 	leadingSpacesRegex = regexp.MustCompile(`^[\s]+`)
 )
 
+// MinIndent ...
 func MinIndent(lines []string) int {
 	minSpaces := 0
 	for _, line := range lines {
@@ -37,6 +39,7 @@ func MinIndent(lines []string) int {
 	return minSpaces
 }
 
+// PreviewLines ...
 func PreviewLines(lines []string, length int) []string {
 	totalLines := len(lines)
 	previewLines := Min(length, totalLines-1)
@@ -49,12 +52,14 @@ func PreviewLines(lines []string, length int) []string {
 }
 
 // func Lines(source string, newline string) []string {
+// LineNumber ...
 func Lines(source string) []string {
 	newline := DetectNewline([]byte(source))
 	return strings.Split(source, newline)
 }
 
 // func LineNumber(source string, pos int, newline string) int {
+// LineNumber ...
 func LineNumber(source string, pos int) int {
 	before := source[0:pos]
 	// lines := Lines(before, newline)

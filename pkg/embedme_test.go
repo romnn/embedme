@@ -25,7 +25,7 @@ func TestFirstCommentHash(t *testing.T) {
 	}{
 		{
 			description: "single valid python comment",
-			language:    PYTHON,
+			language:    Python,
 			source: `
 
 # valid python comment
@@ -37,7 +37,7 @@ def test():
 		},
 		{
 			description: "single invalid python comment",
-			language:    PYTHON,
+			language:    Python,
 			source: `
 
 // invalid python comment
@@ -49,7 +49,7 @@ def test():
 		},
 		{
 			description: "2 python comments: valid then invalid",
-			language:    PYTHON,
+			language:    Python,
 			source: `
 
   # valid python comment
@@ -62,7 +62,7 @@ def test():
 		},
 		{
 			description: "2 python comments: invalid then valid",
-			language:    PYTHON,
+			language:    Python,
 			source: `
 
 // invalid python comment
@@ -75,7 +75,7 @@ def test():
 		},
 		{
 			description: "2 valid python comments",
-			language:    PYTHON,
+			language:    Python,
 			source: `
   # valid 1
   # valid 2
@@ -130,11 +130,15 @@ block2
 			expected: []CodeBlock{
 				{
 					Code:      "block1\n",
+					Start:     31,
+					End:       38,
 					StartLine: 5,
 					EndLine:   6,
 				},
 				{
 					Code:      "block2\n",
+					Start:     47,
+					End:       54,
 					StartLine: 9,
 					EndLine:   10,
 				},
@@ -158,12 +162,16 @@ block2
 				{
 					Code:      "block1\n",
 					Language:  "python",
+					Start:     37,
+					End:       44,
 					StartLine: 5,
 					EndLine:   6,
 				},
 				{
 					Code:      "block2\n",
 					Language:  "python",
+					Start:     59,
+					End:       66,
 					StartLine: 9,
 					EndLine:   10,
 				},
@@ -187,12 +195,16 @@ This is a regular readme
 				{
 					Code:      "// bad comment\n",
 					Language:  "python",
+					Start:     37,
+					End:       52,
 					StartLine: 5,
 					EndLine:   6,
 				},
 				{
 					Code:      "# good comment\n",
 					Language:  "python",
+					Start:     67,
+					End:       82,
 					StartLine: 9,
 					EndLine:   10,
 				},

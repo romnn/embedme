@@ -16,11 +16,12 @@ repos:
       - id: go-cyclo
         args: [-over=15]
         exclude: ^.*/gen/.*\.pb(\.gw)?\.go$
-
-  - repo: local
-    hooks:
-      - id: embed
-        name: embed
-        entry: embedme --verify README.md
-        language: system
-        pass_filenames: false
+# - repo: local
+#   hooks:
+#     - id: embed
+#       name: embed
+#       entry: >
+#         go run github.com/romnn/embedme/cmd/embedme --verify README.md
+#
+#       language: system
+#       pass_filenames: false

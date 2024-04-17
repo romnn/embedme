@@ -2,11 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"github.com/romnn/embedme/internal"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
+
+	"github.com/romnn/embedme/internal"
 )
 
 type EmbedFileCommand struct {
@@ -50,12 +51,12 @@ func (cmd *EmbedFileCommand) Output() ([]string, error) {
 	// lines := internal.Lines(string(content), newline)
 	lines := internal.Lines(string(content))
 
-  // select lines
+	// select lines
 	if startLine, endLine, ok := cmd.Lines(); ok {
 		lines = lines[startLine:endLine]
 	}
 
-  // properly indent
+	// properly indent
 	minSpaces := internal.MinIndent(lines)
 	if minSpaces > 0 {
 		for i, line := range lines {

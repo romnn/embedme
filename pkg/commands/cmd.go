@@ -2,9 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"github.com/romnn/embedme/internal"
+	"os/exec"
 	"regexp"
-  "os/exec"
+
+	"github.com/romnn/embedme/internal"
 )
 
 type EmbedCommandOutputCommand struct {
@@ -35,15 +36,15 @@ func (cmd *EmbedCommandOutputCommand) Parse(comment string) error {
 }
 
 func (cmd *EmbedCommandOutputCommand) Output() ([]string, error) {
-  execCmd := exec.Command("sh", "-c", cmd.Cmd)
-  // set working directory of the command
-  execCmd.Dir = cmd.Cwd
-  output, err := execCmd.CombinedOutput()
-  if err != nil {
-    return nil, err
-  }
+	execCmd := exec.Command("sh", "-c", cmd.Cmd)
+	// set working directory of the command
+	execCmd.Dir = cmd.Cwd
+	output, err := execCmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
 	// newline := internal.DetectNewline(output)
 	// lines := internal.Lines(string(output), newline)
 	lines := internal.Lines(string(output))
-  return lines, nil
+	return lines, nil
 }

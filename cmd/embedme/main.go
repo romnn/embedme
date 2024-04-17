@@ -13,8 +13,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/romnn/embedme/internal"
-	"github.com/romnn/embedme/pkg"
-	"github.com/sabhiram/go-gitignore"
+	embedme "github.com/romnn/embedme/pkg"
+	ignore "github.com/sabhiram/go-gitignore"
 	"github.com/urfave/cli/v3"
 )
 
@@ -23,14 +23,6 @@ var Version = ""
 
 // Rev is set during build
 var Rev = ""
-
-var (
-	Magenta = color.New(color.FgMagenta).FprintfFunc()
-	Info    = color.New(color.FgBlue).FprintfFunc()
-	Warning = color.New(color.FgYellow).FprintfFunc()
-	Error   = color.New(color.FgRed).FprintfFunc()
-	Log     = color.New(color.FgWhite).FprintfFunc()
-)
 
 func versionString() string {
 	return fmt.Sprintf("%s (%s)", Version, Rev)
@@ -59,7 +51,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		color.NoColor = false
 	}
 
-	Magenta(log.Writer(), "embedme v%s\n", versionString())
+	embedme.Magenta(log.Writer(), "embedme v%s\n", versionString())
 
 	realCwd, err := os.Getwd()
 	if err != nil {
@@ -116,15 +108,15 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if len(sources) > 1 && (options.Stdout || output != "") {
-		Warning(log.Writer(), "more than one file matched: results will be concatenated")
+		embedme.Warning(log.Writer(), "more than one file matched: results will be concatenated")
 	}
 	if len(sources) == 0 {
-		Warning(log.Writer(), "no files matched your input")
+		embedme.Warning(log.Writer(), "no files matched your input")
 		return nil
 	}
 
 	if options.StripEmbedComment && !options.Stdout {
-		Error(log.Writer(), `Invalid use of --strip-embed-comment.
+		embedme.Error(log.Writer(), `Invalid use of --strip-embed-comment.
 If you use the --strip-embed-comment flag, you must use the --stdout flag
 and redirect the result to your destination file, otherwise your source
 file(s) will be overwritten and the comment source is lost.`)
@@ -132,13 +124,13 @@ file(s) will be overwritten and the comment source is lost.`)
 	}
 
 	if options.Verify {
-		Info(log.Writer(), "Verifying...\n")
+		embedme.Info(log.Writer(), "Verifying...\n")
 	} else if options.DryRun {
-		Info(log.Writer(), "Doing a dry run...\n")
+		embedme.Info(log.Writer(), "Doing a dry run...\n")
 	} else if options.Stdout {
-		Info(log.Writer(), "Writing to stdout...\n")
+		embedme.Info(log.Writer(), "Writing to stdout...\n")
 	} else {
-		Info(log.Writer(), "Embedding...\n")
+		embedme.Info(log.Writer(), "Embedding...\n")
 	}
 
 	for _, ignoreFile := range []string{".embedmeignore", ".gitignore"} {
@@ -154,12 +146,12 @@ file(s) will be overwritten and the comment source is lost.`)
 		ignored := sources.Ignore(ignore)
 
 		if ignored > 0 {
-			Info(log.Writer(), "Skipped %d files ignored in %s\n", ignored, ignoreFile)
+			embedme.Info(log.Writer(), "Skipped %d files ignored in %s\n", ignored, ignoreFile)
 		}
 	}
 
 	if len(sources) == 0 {
-		Warning(log.Writer(), "All matching files were ignored\n")
+		embedme.Warning(log.Writer(), "All matching files were ignored\n")
 		return nil
 	}
 
@@ -170,7 +162,7 @@ file(s) will be overwritten and the comment source is lost.`)
 		}
 
 		if i > 0 {
-			Log(log.Writer(), "---")
+			embedme.Log(log.Writer(), "---")
 		}
 		log.SetPrefix("test")
 
@@ -197,7 +189,7 @@ file(s) will be overwritten and the comment source is lost.`)
 			fmt.Print(embedded)
 		} else if !options.DryRun {
 			if diff {
-				Magenta(log.Writer(), "Writing %s with embedded changes.\n", relSource)
+				embedme.Magenta(log.Writer(), "Writing %s with embedded changes.\n", relSource)
 				f, err := os.Open(source)
 				if err != nil {
 					panic(err)
@@ -207,12 +199,12 @@ file(s) will be overwritten and the comment source is lost.`)
 				//   panic(err)
 				// }
 			} else {
-				Magenta(log.Writer(), "No changes to write for %s\n", relSource)
+				embedme.Magenta(log.Writer(), "No changes to write for %s\n", relSource)
 			}
 		}
 	}
 
-	Magenta(log.Writer(), "done in %v\n", time.Now().Sub(start))
+	embedme.Magenta(log.Writer(), "done in %v\n", time.Now().Sub(start))
 	return nil
 }
 
@@ -238,7 +230,7 @@ func main() {
 	}
 	err := app.Run(context.Background(), os.Args)
 	if err != nil {
-		Error(log.Writer(), "error: %v\n", err)
+		embedme.Error(log.Writer(), "error: %v\n", err)
 		os.Exit(1)
 	}
 }
