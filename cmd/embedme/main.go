@@ -4,17 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/romnn/embedme/internal"
 	embedme "github.com/romnn/embedme/pkg"
-	ignore "github.com/sabhiram/go-gitignore"
 	"github.com/urfave/cli/v3"
 )
 
@@ -28,55 +24,93 @@ func versionString() string {
 	return fmt.Sprintf("%s (%s)", Version, Rev)
 }
 
+type Config struct {
+	Stdout     bool
+	Silent     bool
+	UseColor   bool
+	ForceColor bool
+	Verify     bool
+	DryRun     bool
+	Output     string
+	Glob       bool
+	WorkingDir string
+	Base       string
+}
+
+func parseConfig(cmd *cli.Command) (Config, error) {
+	config := Config{
+		Stdout:     cmd.Bool(stdoutFlag.Name),
+		Silent:     cmd.Bool(silentFlag.Name),
+		UseColor:   cmd.Bool(colorFlag.Name),
+		ForceColor: cmd.Bool(forceColorFlag.Name),
+		Verify:     cmd.Bool(verifyFlag.Name),
+		DryRun:     cmd.Bool(dryRunFlag.Name),
+		Output:     cmd.String(outputFlag.Name),
+		Glob:       cmd.Bool(globFlag.Name),
+		WorkingDir: cmd.String(cwdFlag.Name),
+		Base:       cmd.String(sourceBaseFlag.Name),
+	}
+	realWorkingDir, err := os.Getwd()
+	if err != nil {
+		return config, err
+	}
+	if config.WorkingDir == "" {
+		config.WorkingDir = realWorkingDir
+	}
+	if config.Base == "" {
+		config.Base = config.WorkingDir
+	}
+	return config, nil
+}
+
 func run(ctx context.Context, cmd *cli.Command) error {
 	start := time.Now()
 
-	stdout := cmd.Bool(stdoutFlag.Name)
-	silent := cmd.Bool(silentFlag.Name)
-	useColor := cmd.Bool(colorFlag.Name)
-	forceColor := cmd.Bool(forceColorFlag.Name)
+	config, err := parseConfig(cmd)
+	if err != nil {
+		return err
+	}
 
-	if silent {
+	if config.Silent {
 		log.SetOutput(io.Discard)
-	} else if stdout {
+	} else if config.Stdout {
 		// the result will be written to stdout,
 		// so we redirect the logs to stderr
 		log.SetOutput(os.Stderr)
 	}
 
-	if !useColor {
+	if !config.UseColor {
 		color.NoColor = true
 	}
-	if forceColor {
+	if config.ForceColor {
 		color.NoColor = false
 	}
 
 	embedme.Magenta(log.Writer(), "embedme v%s\n", versionString())
 
-	realCwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	output := cmd.String(outputFlag.Name)
-
-	glob := cmd.Bool(globFlag.Name)
-	cwd := cmd.String(cwdFlag.Name)
-	base := cmd.String(sourceBaseFlag.Name)
-	if cwd == "" {
-		cwd = realCwd
-	}
-	if base == "" {
-		base = cwd
-	}
-
 	options := embedme.Options{
 		StripEmbedComment: cmd.Bool(stripEmbedCommentFlag.Name),
-		Stdout:            stdout,
-		Verify:            cmd.Bool(verifyFlag.Name),
-		DryRun:            cmd.Bool(dryRunFlag.Name),
-		Cwd:               cwd,
-		Base:              base,
+		Stdout:            config.Stdout,
+		Verify:            config.Verify,
+		DryRun:            config.DryRun,
+		WorkingDir:        config.WorkingDir,
+		Base:              config.Base,
+	}
+
+	embedder, err := embedme.NewEmbedder(options)
+
+	ignoreFiles, err := embedme.GlobFiles(
+		embedder.FS,
+		options.WorkingDir,
+		".embedmeignore", ".gitignore",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to find ignore files: %v", err)
+	}
+	finder := embedme.SourceFinder{
+		WorkingDir:  options.WorkingDir,
+		Glob:        config.Glob,
+		IgnoreFiles: ignoreFiles,
 	}
 
 	allFlags := make(map[string]bool)
@@ -85,29 +119,28 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			allFlags[name] = true
 		}
 	}
-
-	sources := make(sourceMap)
+	patterns := []string{}
 	for _, arg := range cmd.Args().Slice() {
 		flag := strings.TrimLeft(strings.TrimSpace(arg), "-")
-		if _, ok := allFlags[flag]; ok {
-			// is a flag, skip
-			continue
-		}
-		if glob {
-			matches, err := fs.Glob(os.DirFS(cwd), arg)
-			if err != nil {
-				return fmt.Errorf("failed to glob pattern %q in %s: %v", arg, cwd, err)
-			}
-			sources.Add(matches...)
-		} else {
-			if !filepath.IsAbs(arg) {
-				arg = filepath.Join(cwd, arg)
-			}
-			sources.Add(arg)
+		if _, ok := allFlags[flag]; !ok {
+			// is not flag
+			patterns = append(patterns, arg)
 		}
 	}
 
-	if len(sources) > 1 && (options.Stdout || output != "") {
+	sources, err := finder.FindSources(embedder.FS, patterns...)
+	if err != nil {
+		return err
+	}
+	validSources := sources.Valid()
+	// validSources := []string{}
+	// for source, valid := range sources {
+	// 	if valid {
+	// 		validSources = append(validSources, source)
+	// 	}
+	// }
+
+	if len(sources) > 1 && (options.Stdout || config.Output != "") {
 		embedme.Warning(log.Writer(), "more than one file matched: results will be concatenated")
 	}
 	if len(sources) == 0 {
@@ -133,74 +166,14 @@ file(s) will be overwritten and the comment source is lost.`)
 		embedme.Info(log.Writer(), "Embedding...\n")
 	}
 
-	for _, ignoreFile := range []string{".embedmeignore", ".gitignore"} {
-		ignorePath := filepath.Join(cwd, ignoreFile)
-		if _, err := os.Stat(ignorePath); err != nil {
-			continue
-		}
-
-		ignore, err := ignore.CompileIgnoreFile(ignorePath)
-		if err != nil {
-			continue
-		}
-		ignored := sources.Ignore(ignore)
-
-		if ignored > 0 {
-			embedme.Info(log.Writer(), "Skipped %d files ignored in %s\n", ignored, ignoreFile)
-		}
-	}
-
-	if len(sources) == 0 {
+	if len(validSources) == 0 {
 		embedme.Warning(log.Writer(), "All matching files were ignored\n")
 		return nil
 	}
 
-	for i, source := range sources.Valid() {
-		relSource := source
-		if rel, err := filepath.Rel(cwd, source); err == nil {
-			relSource = rel
-		}
-
-		if i > 0 {
-			embedme.Log(log.Writer(), "---")
-		}
-		log.SetPrefix("test")
-
-		if err := internal.EnsureFile(source); err != nil {
-			return fmt.Errorf("file %s does not exist: %v", relSource, err)
-		}
-
-		markdown, err := os.ReadFile(source)
-		if err != nil {
-			return fmt.Errorf("file %s could not be read: %v", relSource, err)
-		}
-
-		embedded, err := embedme.Embed(markdown, source, relSource, &options)
-		if err != nil {
-			return fmt.Errorf("failed to embed %s: %v", relSource, err)
-		}
-
-		diff := string(markdown) != embedded
-		if options.Verify {
-			if diff {
-				return fmt.Errorf("Difference detected, exiting 1\n")
-			}
-		} else if options.Stdout {
-			fmt.Print(embedded)
-		} else if !options.DryRun {
-			if diff {
-				embedme.Magenta(log.Writer(), "Writing %s with embedded changes.\n", relSource)
-				f, err := os.Open(source)
-				if err != nil {
-					panic(err)
-				}
-				defer f.Close()
-				// if _, err := f.Write([]byte(embedded)); err != nil {
-				//   panic(err)
-				// }
-			} else {
-				embedme.Magenta(log.Writer(), "No changes to write for %s\n", relSource)
-			}
+	for i, source := range validSources {
+		if err := embedder.ProcessSource(i, source); err != nil {
+			return err
 		}
 	}
 

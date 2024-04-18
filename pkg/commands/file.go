@@ -2,12 +2,13 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 
 	"github.com/romnn/embedme/internal"
+	"github.com/romnn/embedme/pkg/fs"
+	"github.com/spf13/afero"
 )
 
 type EmbedFileCommand struct {
@@ -16,15 +17,17 @@ type EmbedFileCommand struct {
 	Path      string
 	StartLine int
 	EndLine   int
-	Base      string
+	BaseDirs  []string
+	FS        afero.Fs
 }
 
-func NewEmbedFileCommand(base string) *EmbedFileCommand {
+func NewEmbedFileCommand(fs afero.Fs, baseDirs ...string) *EmbedFileCommand {
 	return &EmbedFileCommand{
 		Path:      "",
 		StartLine: 0,
 		EndLine:   0,
-		Base:      base,
+		BaseDirs:  baseDirs,
+		FS:        fs,
 	}
 }
 
@@ -37,11 +40,25 @@ func (cmd *EmbedFileCommand) Lines() (int, int, bool) {
 }
 
 func (cmd *EmbedFileCommand) Output() ([]string, error) {
-	path := filepath.Join(cmd.Base, cmd.Path)
-	if err := internal.EnsureFile(path); err != nil {
-		return nil, fmt.Errorf("failed to embed %s: %v", cmd.Path, err)
+	candidatePaths := []string{}
+	for _, base := range cmd.BaseDirs {
+		candidatePaths = append(candidatePaths, filepath.Join(base, cmd.Path))
 	}
-	content, err := os.ReadFile(path)
+	var existingPath string
+	for _, path := range candidatePaths {
+		if err := fs.EnsureFile(cmd.FS, path); err == nil {
+			existingPath = path
+		}
+	}
+
+	if existingPath == "" {
+		return nil, fmt.Errorf(
+			"failed to embed: neither of %v exists",
+			candidatePaths,
+		)
+	}
+
+	content, err := afero.ReadFile(cmd.FS, existingPath)
 	if err != nil {
 		return nil, err
 	}

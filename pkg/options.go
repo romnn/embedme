@@ -6,6 +6,17 @@ type Options struct {
 	Stdout            bool
 	Verify            bool
 	DryRun            bool
-	Cwd               string
+	WorkingDir        string
 	Base              string
+}
+
+func NewDefaultOptions() Options {
+	return Options{
+		StripEmbedComment: false,
+		Stdout:            false,
+		Verify:            false,
+		DryRun:            false,
+		WorkingDir:        "",
+		Base:              "",
+	}
 }

@@ -6,18 +6,23 @@ import (
 	"regexp"
 
 	"github.com/romnn/embedme/internal"
+	"github.com/spf13/afero"
 )
 
 type EmbedCommandOutputCommand struct {
 	Command
-	Cmd string
-	Cwd string
+	Cmd        string
+	WorkingDir string
+	// BaseDirs []string
+	FS afero.Fs
 }
 
-func NewEmbedCommandOutputCommand(cwd string) *EmbedCommandOutputCommand {
+func NewEmbedCommandOutputCommand(fs afero.Fs, cwd string) *EmbedCommandOutputCommand {
 	return &EmbedCommandOutputCommand{
 		Cmd: "",
-		Cwd: cwd,
+		// BaseDirs: baseDirs,
+		WorkingDir: cwd,
+		FS:         fs,
 	}
 }
 
@@ -38,7 +43,7 @@ func (cmd *EmbedCommandOutputCommand) Parse(comment string) error {
 func (cmd *EmbedCommandOutputCommand) Output() ([]string, error) {
 	execCmd := exec.Command("sh", "-c", cmd.Cmd)
 	// set working directory of the command
-	execCmd.Dir = cmd.Cwd
+	execCmd.Dir = cmd.WorkingDir
 	output, err := execCmd.CombinedOutput()
 	if err != nil {
 		return nil, err

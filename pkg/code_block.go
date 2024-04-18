@@ -1,13 +1,14 @@
 package embedme
 
 import (
-	// "errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
 	"github.com/romnn/embedme/internal"
 	"github.com/romnn/embedme/pkg/commands"
+	"github.com/spf13/afero"
 )
 
 var (
@@ -16,7 +17,8 @@ var (
 	// optional: capture first line starting with //
 	blockRegex = regexp.MustCompile(
 		// multiline mode
-		"(?m:" +
+		// "(?m:)(?P<all>" +
+		"(?m:(?P<all>" +
 			// optional embed comment
 			"(<!--\\s*?embedme[ ]+?(?P<embedComment>\\S+?)\\s*?-->)?" +
 			// optional ignore next comment
@@ -25,11 +27,14 @@ var (
 			// todo: ensure this is not another code block here
 			"[\\s\\S]*?" +
 			// start of block and language
-			"^(?P<indent>[ \t]*?)```(?P<language>\\w*)?.*\n" +
+			// indent counts the number of whitespace and tabs for indentation
+			"^(?P<indent>[ \t]*?)```(?P<language>\\w*)?\\s*\n" +
+			// "^(?P<indent>\\s*```(?P<language>\\w*)?.*\n" +
 			// inside code block
-			"(?P<block>[\\s\\S]*?)^[ \t]*?```" +
+			// "(?P<block>[\\s\\S]*?)^[ \t]*?```" +
+			"(?P<block>[\\s\\S]*?)```" +
 			// end of multiline mode
-			")",
+			"))",
 	)
 )
 
@@ -89,7 +94,8 @@ Supported extensions are %s, skipping...`,
 // }
 
 // func (b *CodeBlock) EmbedCommand(options *Options) (*EmbedComment, commands.Command, error) {
-func (b *CodeBlock) EmbedCommand(options *Options) (string, commands.Command, error) {
+
+func (b *CodeBlock) EmbedCommand(fs afero.Fs, options *Options) (string, commands.Command, error) {
 	// language, err := b.Language()
 	// if err != nil {
 	// 	return nil, err
@@ -99,11 +105,12 @@ func (b *CodeBlock) EmbedCommand(options *Options) (string, commands.Command, er
 		return "", nil, err
 	}
 	// language, _ := b.Language()
+
 	embedComment := b.EmbedComment
 	if embedComment == "" {
-		var ok bool
-		embedComment, ok = FirstComment(b.Code, *typ)
-		if !ok {
+		if firstEmbedComment, ok := FirstComment(b.Code, *typ); ok {
+			embedComment = firstEmbedComment
+		} else {
 			return "", nil, fmt.Errorf(
 				"no comment starting with %s in first line of %q block",
 				commentString(*typ),
@@ -117,11 +124,12 @@ func (b *CodeBlock) EmbedCommand(options *Options) (string, commands.Command, er
 	// 		language,
 	// 	)
 	// }
-	fmt.Println(embedComment)
+	// fmt.Println(embedComment)
 
+	baseDirs := []string{options.Base, options.WorkingDir}
 	commands := []commands.Command{
-		commands.NewEmbedFileCommand(options.Base),
-		commands.NewEmbedCommandOutputCommand(options.Cwd),
+		commands.NewEmbedFileCommand(fs, baseDirs...),
+		commands.NewEmbedCommandOutputCommand(fs, options.WorkingDir),
 	}
 	for _, cmd := range commands {
 		// if err := cmd.Parse(embedComment.Command); err == nil {
@@ -144,10 +152,12 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 
 	matches := internal.GetMatches(blockRegex, string(source))
 	for _, match := range matches {
+		log.Printf("match: %+v\n\n", match)
 		var block CodeBlock
 		if b, ok := match["block"]; ok {
 			block.Start = b.Start
 			block.End = b.End
+
 			block.Code = b.Text
 			// newline)
 			block.StartLine = internal.LineNumber(source, b.Start)
@@ -155,16 +165,13 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 			block.EndLine = internal.LineNumber(source, b.End)
 		}
 
-		// block.start = match.Start
-		// block.end = match.End
-		// block.Code = match.Text
-		// block.StartLine = LineNumber(source, match.Start, newline)
-		// block.EndLine = LineNumber(source, match.End, newline)
-
 		if _, ok := match["embedIgnore"]; ok {
 			block.Ignore = true
 		}
-
+		// if all, ok := match["all"]; ok {
+		// 	block.Start = all.Start
+		// 	block.End = all.End
+		// }
 		if indent, ok := match["indent"]; ok {
 			block.Indent = indent.Text
 		}
@@ -179,8 +186,17 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 		if language, ok := match["language"]; ok {
 			block.Language = Language(language.Text)
 		}
+
+		// block.start = match.Start
+		// block.end = match.End
+		// block.Code = match.Text
+		// block.StartLine = LineNumber(source, match.Start, newline)
+		// block.EndLine = LineNumber(source, match.End, newline)
+
 		blocks = append(blocks, block)
+		// break
 	}
+
 	return blocks
 
 	// matches := blockRegex.FindAllStringSubmatchIndex(string(source), -1)

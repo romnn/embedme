@@ -38,6 +38,10 @@ inv pre-commit
 
 #### TODO
 
+- add support for urls
+- add interface for filesystem accesses
+- add test
+
 - use different color library?
 - refactor the code
 - add a lot of tests!
