@@ -51,18 +51,15 @@ func PreviewLines(lines []string, length int) []string {
 	return lines
 }
 
-// func Lines(source string, newline string) []string {
-// LineNumber ...
+// Lines ...
 func Lines(source string) []string {
 	newline := DetectNewline([]byte(source))
 	return strings.Split(source, newline)
 }
 
-// func LineNumber(source string, pos int, newline string) int {
 // LineNumber ...
 func LineNumber(source string, pos int) int {
 	before := source[0:pos]
-	// lines := Lines(before, newline)
 	lines := Lines(before)
 	return len(lines)
 }

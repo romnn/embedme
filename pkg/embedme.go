@@ -19,7 +19,7 @@ var (
 	backtickRegex = regexp.MustCompile("^```")
 	// Magenta ...
 	Magenta = color.New(color.FgMagenta).FprintfFunc()
-	// Info ...
+	// Success ...
 	Success = color.New(color.FgGreen).FprintfFunc()
 	// Info ...
 	Info = color.New(color.FgBlue).FprintfFunc()
@@ -31,13 +31,17 @@ var (
 	Log = color.New(color.FgWhite).FprintfFunc()
 )
 
-// Embedder ...
+// Embedder is the embedder
+//
+// It is possible to use a custom filesystem implementation.
 type Embedder struct {
 	Options Options
-	// FS      fs.FileSystem
-	FS afero.Fs
+	FS      afero.Fs
 }
 
+// NewEmbedder creates a new embedder
+//
+// The embedder uses the real file system.
 func NewEmbedder(options Options) (Embedder, error) {
 	return Embedder{
 		Options: options,
@@ -45,6 +49,7 @@ func NewEmbedder(options Options) (Embedder, error) {
 	}, nil
 }
 
+// ProcessSource ...
 func (e *Embedder) ProcessSource(i int, absSource string) error {
 	if !filepath.IsAbs(absSource) {
 		absSource = filepath.Join(e.Options.WorkingDir, absSource)
@@ -84,7 +89,7 @@ func (e *Embedder) ProcessSource(i int, absSource string) error {
 	diff := string(markdown) != embedded
 	if e.Options.Verify {
 		if diff {
-			return fmt.Errorf("Difference detected, exiting 1\n")
+			return fmt.Errorf("difference detected")
 		}
 	} else if e.Options.Stdout {
 		fmt.Print(embedded)
@@ -118,17 +123,7 @@ func (e *Embedder) embedBlock(
 	relPath string,
 	block *CodeBlock,
 	newline string,
-	// startLine int,
 ) (string, error) {
-	// relPath, err := filepath.Rel(options.Cwd, path)
-	// if err != nil {
-	// panic(err)
-	// if startLine != block.StartLine {
-	// 	log.Panicf(
-	// 		"different start lines %d != %d",
-	// 		startLine, block.StartLine,
-	// 	)
-	// }
 	if !filepath.IsAbs(absPath) {
 		log.Panicf("expected absolute code path, but got %s", absPath)
 	}
@@ -139,94 +134,24 @@ func (e *Embedder) embedBlock(
 	log.SetPrefix(logPrefix)
 
 	if block.Ignore {
-		// log
-		// Magenta(log.Writer(), "embedme v%s\n", versionString())
 		Info(log.Writer(), "Ignore next comment detected, skipping ...\n")
-		// color.Blue(`"Ignore next" comment detected, skipping ...`)
 		return block.Code, nil
 	}
 	Info(log.Writer(), logPrefix+"\n")
-
-	// let commentedFilename: string | null;
-	// if (commentEmbedOverrideFilepath) {
-	//   commentedFilename = commentEmbedOverrideFilepath;
-	// } else {
-	//   if (!codeExtension) {
-	//     log({ returnSnippet: substr }, chalk => chalk.blue(
 
 	if block.Language == "" {
 		Info(log.Writer(), "No code extension detected, skipping ...\n")
 		return block.Code, nil
 	}
 
-	// language, err := block.Language()
-	// languagerr := block.Language()
-	// if err != nil {
-	// 	color.Blue(err.Error())
-	// 	return block.Code, nil
-	// }
-
-	// if false {
-	// 	color.Blue(
-	// 		"Code block is empty and no preceding embedme comment, skipping...",
-	// 	)
-	// 	return block.Code, nil
-	// }
-
-	// var supported []string
-	// for _, languages := range languageComments {
-	// 	for _, language := range languages {
-	// 		supported = append(supported, string(language))
-	// 	}
-	// }
-	// if comment, ok :=
-	// language := Language(block.Language)
-	// comment, ok := CommentForLanguage[language]
-
 	if _, err := block.CommentType(); err != nil {
 		Warning(log.Writer(), err.Error()+"\n")
-		// color.Yellow(err.Error())
 		return block.Code, nil
 	}
 
-	log.Printf("block code: %s\n", block.Code)
-
-	// if !ok {
-	// 	color.Yellow(
-	// 		"Unsupported file extension %q, supported extensions are %s, skipping...",
-	// 		block.Language,
-	// 		strings.Join(SupportedLanguages, ", "),
-	// 	)
-	// 	return block.Code, nil
-	// }
-
-	// comment, ok := CommentForLanguage[language]
-	// if !ok {
-	// 	color.Red(
-	// 		"File extension %q supported, ",
-	// 		"but comment family could not be determined.",
-	// 	)
-	// }
-	// color.Yellow("%s", comment)
-
-	// var err error
-	// embedCommand := block.embedCommand
-	// if embedCommand == "" {
-	// 	embedCommand, err = EmbedCommand(block.Code, comment)
-	// 	color.Yellow("%s", firstComment)
-	// 	color.Yellow("%v", err)
-	// }
-
-	// if embedCommand == "" {
-	// 	color.White(
-	// 		"No command detected in first line for block with extension %q",
-	// 		block.Language,
-	// 	)
-	// }
 	commandComment, command, err := block.EmbedCommand(e.FS, &e.Options)
 	if err != nil {
 		Error(log.Writer(), err.Error()+"\n")
-		// color.Red(err.Error())
 		return block.Code, nil
 	}
 	if command == nil {
@@ -244,22 +169,17 @@ func (e *Embedder) embedBlock(
 		return block.Code, err
 	}
 
-	// log.Printf("command lines: %+v\n", lines)
 	output := strings.Join(lines, newline)
-	// output = strings.TrimRight(output, " \n\r\t")
 	output = strings.TrimRightFunc(output, func(r rune) bool {
 		return unicode.IsSpace(r)
 	})
 	output += newline
-	// log.Printf("command: %+v\n", output)
 
-	// todo: diff here now
 	if output == block.Code {
 		color.White("No changes required, already up to date")
 		return block.Code, nil
 	}
 
-	// fmt.Println(backtickRegex.FindAllString(output, 1))
 	if len(backtickRegex.FindAllIndex([]byte(output), 1)) > 0 {
 		// invalid
 		return block.Code, fmt.Errorf(
@@ -283,7 +203,6 @@ func (e *Embedder) embedBlock(
 	replacement += output
 	// replacement += newline
 	// replacement += "```"
-
 	// replacement = strings.TrimSpace(replacement)
 
 	// indent
@@ -293,19 +212,11 @@ func (e *Embedder) embedBlock(
 	}
 	replacement = strings.Join(replacementLines, newline)
 
-	// fmt.Println(replacement)
-
 	if e.Options.Verify {
 		color.Yellow("Embedded %d lines", len(lines))
 	} else {
 		color.Green("Embedded %d lines", len(lines))
 	}
-	// todo: type switch on the command for better logging
-	// const [, filename, , lineNumbering, startLine, endLine] = matches;
-
-	// cli command: ^\s*\$\s*([\s\S]+?)$
-	// file path with lines: ^\s*(\S+?)((#L(\d+)-L(\d+))|$)
-	// const matches = commentedFilename.match(/\s?(\S+?)((#L(\d+)-L(\d+))|$)/m);
 
 	return replacement, nil
 }
@@ -324,20 +235,13 @@ func (e *Embedder) Embed(
 
 	blocks := ExtractCodeBlocks(string(markdown))
 
-	// log.Printf("blocks: %v\n", blocks)
-
-	// limit := 2
 	for bi, block := range blocks {
 
 		log.Printf("\n%+v\n", block)
 
-		// color.Magenta("\n%v\n", block)
-		// color.Magenta("\n%+v\n", group)
-
 		// add the partial here
 		between := string(markdown)[previousEnd:block.Start]
-		// between = strings.TrimRight(between, ")
-		log.Printf("PREV:\n%q\n", between)
+		// log.Printf("PREV:\n%q\n", between)
 		partials = append(partials, between)
 
 		newStartLine := 0
@@ -348,33 +252,12 @@ func (e *Embedder) Embed(
 			newStartLine = len(currentLines) - 1
 			log.Printf("block %d starts in line %d\n", bi, newStartLine)
 		}
-		// text.substring(0, index).split(lineEnding).length;
-
-		//     return getLineNumber(sourceText.substring(0, result.index), result.index, lineEnding);
-		//   }
-		//   const startingLineNumber = docPartials.join('').split(lineEnding).length - 1;
-		//   return (
-		//     startingLineNumber + getLineNumber(sourceText.substring(previousEnd, result.index), result.index, lineEnding)
-		//   );
-
-		// const commentInsertion = start.match(/<!--\s*?embedme[ ]+?(\S+?)\s*?-->/);
-
-		// /<!--\s*?embedme[ -]ignore-next\s*?-->/g.test(start),
 
 		embedded, err := e.embedBlock(
 			absPath,
 			relPath,
-			// log,
 			&block,
 			newline,
-			// startLine,
-			// leadingSpaces,
-			// lineEnding,
-			// infoString,
-			// codeExtension as SupportedFileType,
-			// firstLine || '',
-			// startLineNumber,
-			// commentInsertion ? commentInsertion[1] : undefined,
 		)
 		if err != nil {
 			return "", err
@@ -383,32 +266,13 @@ func (e *Embedder) Embed(
 		partials = append(partials, embedded)
 		previousEnd = block.End
 
-		log.Printf("EMBEDDED:\n%q\n", embedded)
-		if false {
-			color.Magenta("\n%s\n", embedded)
-		}
-		// limit--
-		// if limit <= 0 {
-		// 	break
-		// }
+		// log.Printf("EMBEDDED:\n%q\n", embedded)
 	}
 
 	// add the final partial here
 	between := string(markdown)[previousEnd:]
 	partials = append(partials, between)
 
-	// final := strings.Join(partials, newline)
 	final := strings.Join(partials, "")
-	// if true {
-	// fmt.Printf("==== final\n%s\n====\n", final)
-	// }
-	// color.Magenta("\n%+v\n", block)
-
-	//   const [codeFence, leadingSpaces] = result;
-	//   const start = sourceText.substring(previousEnd, result.index);
-	// const infoStringMatch = codeFence.match("/```(.*)/")
-	// const infoString = infoStringMatch ? infoStringMatch[1] : '';
-	// const codeExtension = infoString !== '' ? infoString.trim().split(/\s/)[0] : null;
-	// }
 	return final, nil
 }

@@ -48,7 +48,6 @@ func Glob(fs afero.Fs, pattern string) ([]string, error) {
 
 	regexpPat := regexp.MustCompile(toRegexp(pattern))
 
-	// err := fs.WalkDir(fs, ".", func(path string, d fs.DirEntry, err error) error {
 	err := afero.Walk(fs, ".", func(path string, d iofs.FileInfo, err error) error {
 		if d.IsDir() || err != nil {
 			return nil
@@ -62,7 +61,7 @@ func Glob(fs afero.Fs, pattern string) ([]string, error) {
 	return files, err
 }
 
-func LegacyGlob(fs afero.Fs, pattern string) (matches []string, err error) {
+func legacyGlob(fs afero.Fs, pattern string) (matches []string, err error) {
 	log.Printf("glob: pattern=%s hasMeta=%v\n", pattern, hasMeta(pattern))
 	if !hasMeta(pattern) {
 		// Lstat not supported by all filesystems.

@@ -24,7 +24,8 @@ func versionString() string {
 	return fmt.Sprintf("%s (%s)", Version, Rev)
 }
 
-type Config struct {
+// config contains all embedme CLI options
+type config struct {
 	Stdout     bool
 	Silent     bool
 	UseColor   bool
@@ -37,8 +38,8 @@ type Config struct {
 	Base       string
 }
 
-func parseConfig(cmd *cli.Command) (Config, error) {
-	config := Config{
+func parseConfig(cmd *cli.Command) (config, error) {
+	config := config{
 		Stdout:     cmd.Bool(stdoutFlag.Name),
 		Silent:     cmd.Bool(silentFlag.Name),
 		UseColor:   cmd.Bool(colorFlag.Name),
@@ -63,14 +64,37 @@ func parseConfig(cmd *cli.Command) (Config, error) {
 	return config, nil
 }
 
-func run(ctx context.Context, cmd *cli.Command) error {
-	start := time.Now()
-
-	config, err := parseConfig(cmd)
-	if err != nil {
-		return err
+func sourcePatterns(cmd *cli.Command) []string {
+	allFlags := make(map[string]bool)
+	for _, flag := range cmd.Flags {
+		for _, name := range flag.Names() {
+			allFlags[name] = true
+		}
 	}
+	patterns := []string{}
+	for _, arg := range cmd.Args().Slice() {
+		flag := strings.TrimLeft(strings.TrimSpace(arg), "-")
+		if _, ok := allFlags[flag]; !ok {
+			// is not flag
+			patterns = append(patterns, arg)
+		}
+	}
+	return patterns
+}
 
+func logOperation(options *embedme.Options) {
+	if options.Verify {
+		embedme.Info(log.Writer(), "Verifying...\n")
+	} else if options.DryRun {
+		embedme.Info(log.Writer(), "Doing a dry run...\n")
+	} else if options.Stdout {
+		embedme.Info(log.Writer(), "Writing to stdout...\n")
+	} else {
+		embedme.Info(log.Writer(), "Embedding...\n")
+	}
+}
+
+func configureOutput(config config) {
 	if config.Silent {
 		log.SetOutput(io.Discard)
 	} else if config.Stdout {
@@ -85,6 +109,17 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if config.ForceColor {
 		color.NoColor = false
 	}
+}
+
+func run(ctx context.Context, cmd *cli.Command) error {
+	start := time.Now()
+
+	config, err := parseConfig(cmd)
+	if err != nil {
+		return err
+	}
+
+	configureOutput(config)
 
 	embedme.Magenta(log.Writer(), "embedme v%s\n", versionString())
 
@@ -113,58 +148,30 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		IgnoreFiles: ignoreFiles,
 	}
 
-	allFlags := make(map[string]bool)
-	for _, flag := range cmd.Flags {
-		for _, name := range flag.Names() {
-			allFlags[name] = true
-		}
-	}
-	patterns := []string{}
-	for _, arg := range cmd.Args().Slice() {
-		flag := strings.TrimLeft(strings.TrimSpace(arg), "-")
-		if _, ok := allFlags[flag]; !ok {
-			// is not flag
-			patterns = append(patterns, arg)
-		}
-	}
-
-	sources, err := finder.FindSources(embedder.FS, patterns...)
+	srcPatterns := sourcePatterns(cmd)
+	sources, err := finder.FindSources(embedder.FS, srcPatterns...)
 	if err != nil {
 		return err
 	}
 	validSources := sources.Valid()
-	// validSources := []string{}
-	// for source, valid := range sources {
-	// 	if valid {
-	// 		validSources = append(validSources, source)
-	// 	}
-	// }
 
-	if len(sources) > 1 && (options.Stdout || config.Output != "") {
-		embedme.Warning(log.Writer(), "more than one file matched: results will be concatenated")
-	}
 	if len(sources) == 0 {
 		embedme.Warning(log.Writer(), "no files matched your input")
 		return nil
 	}
 
-	if options.StripEmbedComment && !options.Stdout {
-		embedme.Error(log.Writer(), `Invalid use of --strip-embed-comment.
-If you use the --strip-embed-comment flag, you must use the --stdout flag
-and redirect the result to your destination file, otherwise your source
-file(s) will be overwritten and the comment source is lost.`)
-		os.Exit(1)
+	if len(sources) > 1 && (options.Stdout || config.Output != "") {
+		embedme.Warning(log.Writer(), "more than one file matched: results will be concatenated")
 	}
 
-	if options.Verify {
-		embedme.Info(log.Writer(), "Verifying...\n")
-	} else if options.DryRun {
-		embedme.Info(log.Writer(), "Doing a dry run...\n")
-	} else if options.Stdout {
-		embedme.Info(log.Writer(), "Writing to stdout...\n")
-	} else {
-		embedme.Info(log.Writer(), "Embedding...\n")
+	if options.StripEmbedComment && !options.Stdout {
+		return fmt.Errorf(`invalid use of --strip-embed-comment.
+If you use the --strip-embed-comment flag, you must use the --stdout flag
+and redirect the result to your destination file, otherwise your source
+file(s) will be overwritten and the comment source is lost`)
 	}
+
+	logOperation(&options)
 
 	if len(validSources) == 0 {
 		embedme.Warning(log.Writer(), "All matching files were ignored\n")

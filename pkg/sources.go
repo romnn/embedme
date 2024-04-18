@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/afero"
 )
 
+// SourceMap is a map that tracks if a source path is valid (non-ignored)
 type SourceMap map[string]bool
 
+// ValidCount counts the number of valid (non-ignored) sources
 func (s SourceMap) ValidCount() int {
 	valid := 0
 	for _, ok := range s {
@@ -23,6 +25,9 @@ func (s SourceMap) ValidCount() int {
 	return valid
 }
 
+// Ignore ignores all sources that match the entries of the Gitignore
+//
+// Note: Ignore should be called after all sources were added
 func (s SourceMap) Ignore(gi *ignore.GitIgnore) int {
 	before := s.ValidCount()
 	for source := range s {
@@ -34,12 +39,14 @@ func (s SourceMap) Ignore(gi *ignore.GitIgnore) int {
 	return before - after
 }
 
+// Add adds a source to the soure map
 func (s SourceMap) Add(sources ...string) {
 	for _, source := range sources {
 		s[source] = true
 	}
 }
 
+// Valid returns all valid (non-ignored) sources
 func (s SourceMap) Valid() []string {
 	var valid []string
 	for source, ok := range s {
@@ -52,13 +59,12 @@ func (s SourceMap) Valid() []string {
 
 // SourceFinder ...
 type SourceFinder struct {
-	WorkingDir string
-	Glob       bool
-	// Ignore      bool
+	WorkingDir  string
+	Glob        bool
 	IgnoreFiles []string
-	// FS afero.Fs
 }
 
+// NewSourceFinder ...
 func NewSourceFinder() SourceFinder {
 	return SourceFinder{
 		WorkingDir:  "",
@@ -87,16 +93,8 @@ func GlobFiles(fs afero.Fs, workingDir string, patterns ...string) ([]string, er
 // FindSources ...
 func (f *SourceFinder) FindSources(fs afero.Fs, patterns ...string) (SourceMap, error) {
 	sources := make(SourceMap)
-	// dirFS := fsutil.DirFS(fs, f.WorkingDir)
 	for _, pattern := range patterns {
 		if f.Glob {
-			// matches, err := afero.Glob(dirFS, pattern)
-			// if err != nil {
-			// 	return sources, fmt.Errorf(
-			// 		"failed to glob pattern %q in %s: %v",
-			// 		pattern, f.WorkingDir, err,
-			// 	)
-			// }
 			matches, err := GlobFiles(fs, f.WorkingDir, pattern)
 			if err != nil {
 				return sources, err
@@ -110,30 +108,10 @@ func (f *SourceFinder) FindSources(fs afero.Fs, patterns ...string) (SourceMap, 
 		}
 	}
 
-	// if !f.Ignore {
-	// 	return sources, nil
-	// }
-
-	// find all the ignore files
-	// allIgnoreFiles := []string{}
-	// for _, ignorePattern := range []string{".embedmeignore", ".gitignore"} {
-	// 	ignoreFiles, err := afero.Glob(dirFS, ignorePattern)
-	// 	if err != nil {
-	// 		return sources, fmt.Errorf(
-	// 			"failed to glob pattern %q in %s: %v",
-	// 			ignoreFiles, f.WorkingDir, err,
-	// 		)
-	// 	}
-	// 	allIgnoreFiles = append(allIgnoreFiles, ignoreFiles...)
-	// }
-
-	// Log(log.Writer(), "found ignore files: %v\n", allIgnoreFiles)
-
 	for _, ignoreFile := range f.IgnoreFiles {
 		ignorePath := filepath.Join(f.WorkingDir, ignoreFile)
 		if _, err := fs.Stat(ignorePath); err != nil {
 			return sources, err
-			// continue
 		}
 
 		ignoreContent, err := afero.ReadFile(fs, ignorePath)
@@ -143,15 +121,12 @@ func (f *SourceFinder) FindSources(fs afero.Fs, patterns ...string) (SourceMap, 
 		ignoreLines := strings.Split(string(ignoreContent), "\n")
 
 		ignore := ignore.CompileIgnoreLines(ignoreLines...)
-		// if err != nil {
-		// 	return sources, err
-		// 	// continue
-		// }
 		ignored := sources.Ignore(ignore)
 
 		if ignored > 0 {
 			Info(
-				log.Writer(), "Skipped %d file(s) ignored in %s\n",
+				log.Writer(),
+				"Skipped %d file(s) ignored in %s\n",
 				ignored, ignoreFile,
 			)
 		}

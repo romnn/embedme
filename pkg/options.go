@@ -1,6 +1,6 @@
 package embedme
 
-// Options is used to configure embedme
+// Options for embedme
 type Options struct {
 	StripEmbedComment bool
 	Stdout            bool
@@ -10,6 +10,7 @@ type Options struct {
 	Base              string
 }
 
+// NewDefaultOptions returns default options for embedme
 func NewDefaultOptions() Options {
 	return Options{
 		StripEmbedComment: false,

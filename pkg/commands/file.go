@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/afero"
 )
 
+// EmbedFileCommand ...
 type EmbedFileCommand struct {
 	Command
 	Root      string
@@ -21,6 +22,7 @@ type EmbedFileCommand struct {
 	FS        afero.Fs
 }
 
+// NewEmbedFileCommand ...
 func NewEmbedFileCommand(fs afero.Fs, baseDirs ...string) *EmbedFileCommand {
 	return &EmbedFileCommand{
 		Path:      "",
@@ -31,6 +33,7 @@ func NewEmbedFileCommand(fs afero.Fs, baseDirs ...string) *EmbedFileCommand {
 	}
 }
 
+// Lines ...
 func (cmd *EmbedFileCommand) Lines() (int, int, bool) {
 	valid := true
 	if cmd.StartLine >= cmd.EndLine {
@@ -39,6 +42,7 @@ func (cmd *EmbedFileCommand) Lines() (int, int, bool) {
 	return cmd.StartLine, cmd.EndLine, valid
 }
 
+// Output ...
 func (cmd *EmbedFileCommand) Output() ([]string, error) {
 	candidatePaths := []string{}
 	for _, base := range cmd.BaseDirs {
@@ -64,8 +68,6 @@ func (cmd *EmbedFileCommand) Output() ([]string, error) {
 	}
 
 	// convert to lines
-	// newline := internal.DetectNewline(content)
-	// lines := internal.Lines(string(content), newline)
 	lines := internal.Lines(string(content))
 
 	// select lines
@@ -87,6 +89,7 @@ var (
 	embedPathRegex = regexp.MustCompile(`^\s*(?P<path>\S+?)(#L?(?P<start>\d+)-L?(?P<end>\d+))?\s*$`)
 )
 
+// Parse ...
 func (cmd *EmbedFileCommand) Parse(comment string) error {
 	matches := internal.GetMatches(embedPathRegex, comment)
 	if len(matches) < 1 {

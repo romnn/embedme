@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	// "github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/k0kubun/pp/v3"
 	"github.com/spf13/afero"
 )
@@ -15,15 +14,11 @@ func pretty(m interface{}) string {
 	return pp.Sprint(m)
 }
 
-// todo: test first comment for hash comment (Python)
-// todo: test first comment for single quote comment (?)
-// todo: test first comment for double slash quote comment (C)
-
 func TestFirstCommentHash(t *testing.T) {
 	for _, c := range []struct {
 		description string
 		source      string
-		language    []Language
+		language    []LanguageID
 		expected    string
 	}{
 		{
@@ -96,11 +91,8 @@ def test():
 		}
 		comment, _ := FirstComment(c.source, commentTyp)
 
-		options := []cmp.Option{
-			// cmpopts.IgnoreUnexported(CodeBlock{}),
-		}
-		equal := cmp.Equal(comment, c.expected, options...)
-		diff := cmp.Diff(comment, c.expected, options...)
+		equal := cmp.Equal(comment, c.expected)
+		diff := cmp.Diff(comment, c.expected)
 		if !equal {
 			t.Log(pretty(comment))
 			t.Log(pretty(c.expected))
@@ -216,11 +208,8 @@ This is a regular readme
 	} {
 		blocks := ExtractCodeBlocks(c.source)
 
-		options := []cmp.Option{
-			// cmpopts.IgnoreUnexported(CodeBlock{}),
-		}
-		equal := cmp.Equal(blocks, c.expected, options...)
-		diff := cmp.Diff(blocks, c.expected, options...)
+		equal := cmp.Equal(blocks, c.expected)
+		diff := cmp.Diff(blocks, c.expected)
 		if !equal {
 			t.Log(pretty(blocks))
 			t.Log(pretty(c.expected))
@@ -283,10 +272,6 @@ func greet(name string) {
 }
 	`)), 0644)
 
-	cmpOptions := []cmp.Option{
-		// cmpopts.IgnoreUnexported(CodeBlock{}),
-	}
-
 	options := NewDefaultOptions()
 	options.Base = filepath.Join(workingDir, "code")
 	options.WorkingDir = workingDir
@@ -294,19 +279,16 @@ func greet(name string) {
 		Options: options,
 		FS:      fs,
 	}
-	// builder := NewSourceFinder().With(
 	ignoreFiles, err := GlobFiles(
-		fs, workingDir,
-		// ".gitignore", "**/.gitignore",
-		"**/.gitignore",
+		fs, workingDir, "**/.gitignore",
 	)
 	if err != nil {
 		t.Fatalf("failed to find ignore files: %v", err)
 	}
 	t.Logf("ignore files: %v", pretty(ignoreFiles))
 	expectedIgnoreFiles := []string{".gitignore", "nested/.gitignore"}
-	equal := cmp.Equal(ignoreFiles, expectedIgnoreFiles, cmpOptions...)
-	diff := cmp.Diff(ignoreFiles, expectedIgnoreFiles, cmpOptions...)
+	equal := cmp.Equal(ignoreFiles, expectedIgnoreFiles)
+	diff := cmp.Diff(ignoreFiles, expectedIgnoreFiles)
 	if !equal {
 		t.Log(pretty(expectedIgnoreFiles))
 		t.Fatalf("unexpected ignore files: %s", diff)
@@ -326,8 +308,8 @@ func greet(name string) {
 		"nested/values.txt": false,
 		"readme.md":         true,
 	}
-	equal = cmp.Equal(sources, expectedSources, cmpOptions...)
-	diff = cmp.Diff(sources, expectedSources, cmpOptions...)
+	equal = cmp.Equal(sources, expectedSources)
+	diff = cmp.Diff(sources, expectedSources)
 	if !equal {
 		t.Log(pretty(expectedSources))
 		t.Fatalf("unexpected sources: %s", diff)
@@ -338,7 +320,6 @@ func greet(name string) {
 			t.Fatalf("%v", err)
 		}
 	}
-	// now check the results
 	embeddedReadme, err := afero.ReadFile(fs, readmePath)
 	if err != nil {
 		t.Fatalf("failed to read embedded file %s: %v", readmePath, err)
@@ -378,11 +359,10 @@ func greet(name string) {
 ` + "```" + `
 	`)
 
-	equal = cmp.Equal(string(embeddedReadme), expectedReadme, cmpOptions...)
-	diff = cmp.Diff(string(embeddedReadme), expectedReadme, cmpOptions...)
+	equal = cmp.Equal(string(embeddedReadme), expectedReadme)
+	diff = cmp.Diff(string(embeddedReadme), expectedReadme)
 	if !equal {
 		t.Logf("expected readme: %s", expectedReadme)
-		// t.Log(pretty(expectedSources))
 		t.Fatalf("unexpected readme: %s", diff)
 	}
 
