@@ -2,7 +2,6 @@ package embedme
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 
 	"github.com/romnn/embedme/internal"
@@ -113,7 +112,7 @@ func ExtractCodeBlocks(source string) []CodeBlock {
 
 	matches := internal.GetMatches(blockRegex, string(source))
 	for _, match := range matches {
-		log.Printf("match: %+v\n\n", match)
+		// log.Printf("match: %+v\n\n", match)
 		var block CodeBlock
 		if b, ok := match["block"]; ok {
 			block.Start = b.Start

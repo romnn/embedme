@@ -133,6 +133,9 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	embedder, err := embedme.NewEmbedder(options)
+	if err != nil {
+		return fmt.Errorf("failed to create new embedder: %v", err)
+	}
 
 	ignoreFiles, err := embedme.GlobFiles(
 		embedder.FS,
@@ -184,7 +187,7 @@ file(s) will be overwritten and the comment source is lost`)
 		}
 	}
 
-	embedme.Magenta(log.Writer(), "done in %v\n", time.Now().Sub(start))
+	embedme.Magenta(log.Writer(), "done in %v\n", time.Since(start))
 	return nil
 }
 

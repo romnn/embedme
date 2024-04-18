@@ -235,23 +235,22 @@ func (e *Embedder) Embed(
 
 	blocks := ExtractCodeBlocks(string(markdown))
 
-	for bi, block := range blocks {
-
-		log.Printf("\n%+v\n", block)
+	for _, block := range blocks {
+		// log.Printf("\n%+v\n", block)
 
 		// add the partial here
 		between := string(markdown)[previousEnd:block.Start]
 		// log.Printf("PREV:\n%q\n", between)
 		partials = append(partials, between)
 
-		newStartLine := 0
-		if e.Options.DryRun || e.Options.Stdout || e.Options.Verify {
-			newStartLine = block.StartLine
-		} else {
-			currentLines := internal.Lines(strings.Join(partials, newline))
-			newStartLine = len(currentLines) - 1
-			log.Printf("block %d starts in line %d\n", bi, newStartLine)
-		}
+		// newStartLine := 0
+		// if e.Options.DryRun || e.Options.Stdout || e.Options.Verify {
+		// 	newStartLine = block.StartLine
+		// } else {
+		// 	currentLines := internal.Lines(strings.Join(partials, newline))
+		// 	newStartLine = len(currentLines) - 1
+		// 	// log.Printf("block %d starts in line %d\n", bi, newStartLine)
+		// }
 
 		embedded, err := e.embedBlock(
 			absPath,
